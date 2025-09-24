@@ -18,7 +18,7 @@
          <div class="md:col-span-4">
             <a href="<?php echo esc_url(home_url('/')); ?>" class="inline-block">
                <img
-                  class="h-12 w-auto"
+                  class="h-[200px] w-[200px] object-fit"
                   src="<?php echo get_stylesheet_directory_uri(); ?>/assets/images/logo-branca.png"
                   alt="<?php bloginfo('name'); ?>">
             </a>

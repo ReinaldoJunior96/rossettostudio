@@ -511,3 +511,33 @@ add_filter('template_include', function ($template) {
 add_filter('loop_shop_per_page', function ($n) {
    return 10;
 }, 20);
+
+
+
+/**
+ * Filtra a loja por múltiplas categorias via ?rs_cats=slug1,slug2 ou rs_cats[]=slug
+ */
+add_action('pre_get_posts', function ($q) {
+   if (is_admin() || !$q->is_main_query()) return;
+
+   // só na loja e arquivos de produto
+   if (!(is_shop() || is_product_taxonomy() || is_product_category() || is_product_tag())) return;
+
+   if (!isset($_GET['rs_cats'])) return;
+
+   $val = $_GET['rs_cats'];
+   $slugs = is_array($val) ? array_filter($val) : array_filter(explode(',', (string)$val));
+   $slugs = array_map('sanitize_title', $slugs);
+   $slugs = array_unique($slugs);
+
+   if (empty($slugs)) return;
+
+   $tax = (array) $q->get('tax_query');
+   $tax[] = [
+      'taxonomy' => 'product_cat',
+      'field'    => 'slug',
+      'terms'    => $slugs,
+      'operator' => 'IN',
+   ];
+   $q->set('tax_query', $tax);
+});
