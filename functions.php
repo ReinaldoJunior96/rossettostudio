@@ -517,27 +517,55 @@ add_filter('loop_shop_per_page', function ($n) {
 /**
  * Filtra a loja por múltiplas categorias via ?rs_cats=slug1,slug2 ou rs_cats[]=slug
  */
+/**
+ * Filtra a loja por múltiplas categorias via ?rs_cats=slug1,slug2 ou rs_cats[]=slug
+ * e garante que não “trave” na página 2/3 etc. após aplicar filtros.
+ * Também remove o filtro automático do Woo que esconde itens fora de estoque (para debug/ambiente dev).
+ */
 add_action('pre_get_posts', function ($q) {
    if (is_admin() || !$q->is_main_query()) return;
 
-   // só na loja e arquivos de produto
-   if (!(is_shop() || is_product_taxonomy() || is_product_category() || is_product_tag())) return;
+   if (is_shop() || is_product_taxonomy() || is_product_category() || is_product_tag()) {
 
-   if (!isset($_GET['rs_cats'])) return;
+      // 1) aplica filtro por categorias (rs_cats)
+      if (isset($_GET['rs_cats'])) {
+         $val   = $_GET['rs_cats'];
+         $slugs = is_array($val) ? array_filter($val) : array_filter(explode(',', (string)$val));
+         $slugs = array_unique(array_map('sanitize_title', $slugs));
 
-   $val = $_GET['rs_cats'];
-   $slugs = is_array($val) ? array_filter($val) : array_filter(explode(',', (string)$val));
-   $slugs = array_map('sanitize_title', $slugs);
-   $slugs = array_unique($slugs);
+         if (!empty($slugs)) {
+            $tax = (array) $q->get('tax_query');
+            $tax[] = [
+               'taxonomy' => 'product_cat',
+               'field'    => 'slug',
+               'terms'    => $slugs,
+               'operator' => 'IN',
+            ];
+            $q->set('tax_query', $tax);
 
-   if (empty($slugs)) return;
+            // Importante: volta para a primeira página quando filtra
+            $q->set('paged', 1);
+         }
+      }
 
-   $tax = (array) $q->get('tax_query');
-   $tax[] = [
-      'taxonomy' => 'product_cat',
-      'field'    => 'slug',
-      'terms'    => $slugs,
-      'operator' => 'IN',
-   ];
-   $q->set('tax_query', $tax);
+      // 2) (opcional, mas ajuda muito em dev) — NÃO excluir fora de estoque
+      // O Woo adiciona product_visibility => outofstock para esconder. Vamos remover.
+      $tax_query = (array) $q->get('tax_query');
+      foreach ($tax_query as $i => $tx) {
+         if (
+            isset($tx['taxonomy'], $tx['terms']) &&
+            $tx['taxonomy'] === 'product_visibility'
+         ) {
+            // Se os termos incluem 'outofstock', remove esse termo
+            if (is_array($tx['terms'])) {
+               $tx['terms'] = array_diff($tx['terms'], ['outofstock']);
+               $tax_query[$i] = $tx;
+            }
+         }
+      }
+      $q->set('tax_query', $tax_query);
+   }
 });
+
+
+add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');

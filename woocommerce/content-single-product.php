@@ -24,7 +24,7 @@ if (empty($product)) {
             <div class="flex-1 flex flex-col">
                <!-- Descrição -->
                <div class="max-w-3xl mt-4">
-                  <h2 class="text-2xl font-bold text-purple-700 mb-2">Descrição</h2>
+                  <h2 class="text-2xl font-bold text-purple-700 mb-2">Descrição aaa</h2>
                   <div class="flex items-center gap-2">
                      <?php wc_get_template('single-product/rating.php'); ?>
                      <span class="text-gray-500 text-sm align-middle">4.5 (67 avaliações)</span>
@@ -37,8 +37,9 @@ if (empty($product)) {
                // ---------- FORMULÁRIO ----------
                if ($product->is_type('variable')) :
                   wp_enqueue_script('wc-add-to-cart-variation'); // JS nativo de variações
-                  // Render padrão (selects + preço dinâmico + botão)
-                  do_action('woocommerce_variable_add_to_cart');
+                  woocommerce_template_single_price();
+                  // imprime o formulário (seletores de variação + qty + botão)
+                  woocommerce_template_single_add_to_cart();
                elseif ($product->is_type('simple')) :
                   $min = max(1, (int) $product->get_min_purchase_quantity());
                   $max = $product->get_max_purchase_quantity();

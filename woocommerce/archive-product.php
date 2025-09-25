@@ -40,7 +40,8 @@ remove_action('woocommerce_before_shop_loop', 'woocommerce_result_count', 20);
                <h3 class="text-base font-semibold text-gray-900">Categorias de produto</h3>
                <?php
                // link "limpar filtros" (remove somente nosso parâmetro customizado de categorias)
-               $clean_url = remove_query_arg('rs_cats');
+               $clean_url = remove_query_arg(['rs_cats', 'paged', 'product-page']);
+
                ?>
                <a href="<?php echo esc_url($clean_url); ?>"
                   class="text-sm font-semibold text-purple-700 hover:text-purple-900">Limpar filtros</a>
@@ -108,7 +109,7 @@ remove_action('woocommerce_before_shop_loop', 'woocommerce_result_count', 20);
                <?php
                // preserva outros parâmetros (busca, paginação, ordenação, etc.)
                foreach ($_GET as $k => $v) {
-                  if ($k === 'rs_cats') continue;
+                  if (in_array($k, ['rs_cats', 'paged', 'product-page'], true)) continue;
                   if (is_array($v)) {
                      foreach ($v as $vv) {
                         echo '<input type="hidden" name="' . esc_attr($k) . '[]" value="' . esc_attr($vv) . '">';
