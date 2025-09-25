@@ -569,3 +569,118 @@ add_action('pre_get_posts', function ($q) {
 
 
 add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');
+
+
+// === Checkout: classes + ordem + placeholders (Tailwind friendly) ===
+
+// === Estilo + ordem para todos os campos do checkout ===
+add_filter('woocommerce_checkout_fields', function ($fields) {
+   $groups = ['billing', 'shipping', 'account', 'order']; // cobre tudo
+
+   foreach ($groups as $group) {
+      if (empty($fields[$group])) continue;
+
+      foreach ($fields[$group] as $key => &$f) {
+         // classes utilitárias p/ nosso CSS
+         $f['class'][]       = 'rs-row';
+         $f['label_class'][] = 'rs-label';
+         $f['input_class'][] = 'rs-input';
+
+         // placeholders simpáticos (exemplos)
+         if ($key === 'billing_address_1') $f['placeholder'] = $f['placeholder'] ?? 'Nome da rua';
+         if ($key === 'billing_address_2') {
+            $f['placeholder'] = $f['placeholder'] ?? 'Apartamento, sala, etc. (opcional)';
+            $f['required'] = false;
+         }
+      }
+   }
+
+   // BR fixo (opcional)
+   if (isset($fields['billing']['billing_country'])) {
+      $fields['billing']['billing_country']['default'] = 'BR';
+      $fields['billing']['billing_country']['class'][] = 'rs-country-compact';
+   }
+
+   // GRID: marca alguns como “linha inteira”
+   foreach (['billing_address_1', 'billing_address_2', 'billing_email', 'order_comments'] as $full) {
+      if (isset($fields['billing'][$full])) $fields['billing'][$full]['class'][] = 'rs-span-2';
+   }
+
+   // Prioridades (pares bonitinhos)
+   $b = &$fields['billing'];
+   $prio = 10;
+   $want = [
+      'billing_first_name',
+      'billing_last_name',
+      'billing_persontype',
+      'billing_cpf',          // se existirem
+      'billing_postcode',
+      'billing_country',
+      'billing_address_1',
+      'billing_number',        // se existir número
+      'billing_neighborhood',
+      'billing_city',       // se existir bairro
+      'billing_state',
+      'billing_phone',
+      'billing_email',
+      'billing_address_2',
+   ];
+   foreach ($want as $k) if (isset($b[$k])) $b[$k]['priority'] = $prio += 10;
+
+   return $fields;
+});
+
+// Garante nossas classes mesmo se o plugin renderizar por outro caminho
+add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
+   if (!is_checkout()) return $args;
+   $args['class'][]       = 'rs-row';
+   $args['label_class'][] = 'rs-label';
+   $args['input_class'][] = 'rs-input';
+   return $args;
+}, 10, 3);
+
+
+// Garante classes nos fields do checkout
+add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
+   if (!is_checkout()) return $args;
+   $args['label_class'][] = 'rs-label';
+   $args['input_class'][] = 'rs-input';
+   $args['class'][]       = 'rs-row';
+   return $args;
+}, 10, 3);
+
+
+// Inputs do checkout com visual padrão do seu tema
+add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
+   if (! is_checkout()) return $args;
+
+   $args['label_class'][] = 'rs-label';
+   $args['input_class'][] = 'rs-input';
+   $args['class'][]       = 'rs-row';
+   return $args;
+}, 10, 3);
+
+
+add_filter('woocommerce_gateway_icon', function ($icon, $gateway_id) {
+   // SVGs simples (troque se quiser usar <img>)
+   $svg_barcode = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="2" height="14" fill="#6b21a8"/><rect x="7" y="5" width="1" height="14" fill="#6b21a8"/><rect x="10" y="5" width="2" height="14" fill="#6b21a8"/><rect x="14" y="5" width="1" height="14" fill="#6b21a8"/><rect x="17" y="5" width="2" height="14" fill="#6b21a8"/></svg>';
+   $svg_card    = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="3" stroke="#6b21a8" stroke-width="2"/><rect x="3" y="9" width="18" height="2" fill="#6b21a8"/></svg>';
+   $svg_pix     = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M7 12l5-5 5 5-5 5-5-5z" fill="#10b981"/></svg>';
+   $svg_wallet  = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="3" stroke="#6b21a8" stroke-width="2"/><circle cx="16" cy="12" r="1.8" fill="#6b21a8"/></svg>';
+
+   $map = [
+      'woo-mercado-pago-ticket' => $svg_barcode, // Boleto
+      'woo-mercado-pago-basic'  => $svg_barcode, // às vezes boleto
+      'woo-mercado-pago-custom' => $svg_card,    // Cartão
+      'woo-mercado-pago-pix'    => $svg_pix,     // Pix
+      'woo-mercado-pago-wallet' => $svg_wallet,  // Mercado Crédito/Carteira
+      'pix'                     => $svg_pix,     // caso tenha outro gateway Pix
+   ];
+   if (isset($map[$gateway_id])) {
+      // substitui totalmente o ícone
+      return '<span class="rs-gw-icon">' . $map[$gateway_id] . '</span>';
+   }
+   return $icon;
+}, 10, 2);
+
+add_filter('woocommerce_coupons_enabled', '__return_false');

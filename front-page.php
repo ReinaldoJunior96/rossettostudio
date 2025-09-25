@@ -21,7 +21,7 @@ get_header();
 
 
 <!-- ==================== PRODUTOS EM DESTAQUE (Glass Cards 2.0) ==================== -->
-<section class="relative py-14 flex flex-col justify-center items-center ">
+<section class="relative py-14 flex flex-col justify-center items-center  ">
    <!-- fundo com glow suave (igual vibe da seção de Sobre) -->
    <!-- <div class="pointer-events-none absolute inset-0 overflow-hidden">
       <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-gradient-to-br from-purple-600 via-fuchsia-500 to-sky-400 blur-3xl opacity-20 rounded-full"></div>

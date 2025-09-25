@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 <div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-6 cart_totals">
    <h2 class="text-xl font-bold text-purple-700 mb-4">Resumo do pedido</h2>
 
-   <ul class="divide-y divide-purple-100">
+   <ul class="divide-y divide-purple-100 ">
       <?php foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) :
          $_product   = $cart_item['data'];
          if (! $_product || ! $_product->exists() || $cart_item['quantity'] <= 0) continue;

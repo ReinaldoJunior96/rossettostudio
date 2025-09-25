@@ -29,39 +29,68 @@ if (! $checkout->is_registration_enabled() && $checkout->is_registration_require
 }
 
 ?>
+<section class=" flex justify-center pt-10">
+   <form name="checkout" method="post" class="checkout woocommerce-checkout margin-site" action="<?php echo esc_url(wc_get_checkout_url()); ?>" enctype="multipart/form-data" aria-label="<?php echo esc_attr__('Checkout', 'woocommerce'); ?>">
 
-<form name="checkout" method="post" class="checkout woocommerce-checkout" action="<?php echo esc_url(wc_get_checkout_url()); ?>" enctype="multipart/form-data" aria-label="<?php echo esc_attr__('Checkout', 'woocommerce'); ?>">
+      <?php if ($checkout->get_checkout_fields()) : ?>
 
-   <?php if ($checkout->get_checkout_fields()) : ?>
+         <?php do_action('woocommerce_checkout_before_customer_details'); ?>
 
-      <?php do_action('woocommerce_checkout_before_customer_details'); ?>
+         <div class="grid grid-cols-12 gap-8  " id="customer_details">
+            <div class="col-span-6">
+               <?php do_action('woocommerce_checkout_billing'); ?>
+            </div>
 
-      <div class="col2-set" id="customer_details">
-         <div class="col-1">
-            <?php do_action('woocommerce_checkout_billing'); ?>
+            <div id="order_review" class="woocommerce-checkout-review-order col-span-6">
+               <?php do_action('woocommerce_checkout_order_review'); ?>
+            </div>
          </div>
 
-         <div class="col-2">
-            <?php do_action('woocommerce_checkout_shipping'); ?>
-         </div>
-      </div>
+         <!-- <?php do_action('woocommerce_checkout_shipping'); ?> -->
+         <?php do_action('woocommerce_checkout_after_customer_details'); ?>
 
-      <?php do_action('woocommerce_checkout_after_customer_details'); ?>
+      <?php endif; ?>
 
-   <?php endif; ?>
+      <!-- <?php do_action('woocommerce_checkout_before_order_review_heading'); ?> -->
 
-   <?php do_action('woocommerce_checkout_before_order_review_heading'); ?>
 
-   <h3 id="order_review_heading"><?php esc_html_e('Your order', 'woocommerce'); ?></h3>
 
-   <?php do_action('woocommerce_checkout_before_order_review'); ?>
+      <!-- <?php do_action('woocommerce_checkout_before_order_review'); ?> -->
 
-   <div id="order_review" class="woocommerce-checkout-review-order">
-      <?php do_action('woocommerce_checkout_order_review'); ?>
-   </div>
 
-   <?php do_action('woocommerce_checkout_after_order_review'); ?>
 
-</form>
+      <?php do_action('woocommerce_checkout_after_order_review'); ?>
+
+   </form>
+</section>
+
 
 <?php do_action('woocommerce_after_checkout_form', $checkout); ?>
+
+
+<script>
+   document.addEventListener('DOMContentLoaded', () => {
+      /* === 1) Garante visual consistente em TODOS inputs === */
+      document.querySelectorAll(
+         '.woocommerce-checkout .form-row input, .woocommerce-checkout .form-row select, .woocommerce-checkout .form-row textarea'
+      ).forEach(el => el.classList.add('rs-input'));
+
+      /* === 2) País => vira “pill” de leitura (altura idêntica aos inputs) === */
+      const wrap = document.querySelector('#billing_country_field');
+      if (wrap) {
+         wrap.classList.add('rs-country-compact'); // garante a classe no wrapper
+         const sel = wrap.querySelector('select');
+         if (sel) {
+            const w = sel.closest('.woocommerce-input-wrapper') || wrap;
+            if (!w.querySelector('.rs-country-pill')) {
+               const pill = document.createElement('div');
+               pill.className = 'rs-country-pill';
+               const label = sel.options[sel.selectedIndex]?.text || 'Brasil';
+               pill.textContent = label;
+               w.appendChild(pill);
+               sel.style.display = 'none'; // escondemos o select (apenas leitura)
+            }
+         }
+      }
+   });
+</script>

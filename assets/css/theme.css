@@ -1,142 +1,375 @@
-:root {
-  --color-purple-default: #6A0DAD;
-  --color-purple-light: #9B59B6;
-  --color-yellow-default: #FFCC00;
-  --color-yellow-light: #FFE066;
-  --color-black: #000000;
-  --color-white: #FFFFFF;
-  --color-gray-default: #808080;
-  --color-gray-light: #D3D3D3;
+:root{
+  --color-purple-default:#6A0DAD;
+  --color-purple-light:#9B59B6;
+  --color-yellow-default:#FFCC00;
+  --color-yellow-light:#FFE066;
+  --color-black:#000;
+  --color-white:#fff;
+  --color-gray-default:#808080;
+  --color-gray-light:#D3D3D3;
 }
 
-/* Exemplo de uso */
-.bg-purple-default {
-  background-color: var(--color-purple-default);
-}
-.bg-yellow-default {
-  background-color: var(--color-yellow-default);
-}
-.text-gray-light {
-  color: var(--color-gray-light);
-}
+/* Utilitários rápidos */
+.bg-purple-default{background-color:var(--color-purple-default)}
+.bg-yellow-default{background-color:var(--color-yellow-default)}
+.text-purple-default{color:var(--color-purple-default)}
+.text-gray-light{color:var(--color-gray-light)}
+.margin-site{max-width:1280px!important;margin-left:20px!important;margin-right:20px!important;width:100%!important}
+a.added_to_cart.wc-forward{display:none!important}
 
-
-.text-purple-default{
-  color: var(--color-purple-default);
-}
-
-@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
-
-/* Configuração da fonte Roboto */
-.roboto {
-  font-family: "Roboto", sans-serif;
-}
-
-.margin-site{
-   max-width: 1280px !important;
-   margin-left: 20px !important;
-  margin-right: 20px !important; 
-   width: 100% !important;
-}
-
-
-a.added_to_cart.wc-forward { display:none !important; }
-
-
-/* === Conta (login/registro) – baseline de inputs === */
-.woocommerce-account .woocommerce form .form-row label {
-  display:block; margin-bottom:6px; font-weight:600; color:#374151; /* gray-700 */
-}
-.woocommerce-account .woocommerce form .required { color:#ef4444; } /* * vermelho */
-
+/* ===== Login/Conta (baseline) ===== */
+.woocommerce-account .woocommerce form .form-row label{display:block;margin-bottom:6px;font-weight:600;color:#374151}
+.woocommerce-account .woocommerce form .required{color:#ef4444}
 .woocommerce-account .woocommerce form .form-row input.input-text,
 .woocommerce-account .woocommerce form .form-row select,
-.woocommerce-account .woocommerce form .form-row textarea {
-  width:100%;
-  border:2px solid #e5e7eb;          /* gray-200 */
-  border-radius:12px;
-  padding:10px 12px;
-  background:#fff;
-  outline:0;
-  transition:border-color .15s, box-shadow .15s;
+.woocommerce-account .woocommerce form .form-row textarea{
+  width:100%;border:2px solid #e5e7eb;border-radius:12px;padding:10px 12px;background:#fff;outline:0;transition:border-color .15s, box-shadow .15s
 }
 .woocommerce-account .woocommerce form .form-row input.input-text:focus,
 .woocommerce-account .woocommerce form .form-row select:focus,
-.woocommerce-account .woocommerce form .form-row textarea:focus {
-  border-color: var(--color-purple-default,#6A0DAD);
-  box-shadow: 0 0 0 3px rgba(155,89,182,.22); /* roxinho suave */
+.woocommerce-account .woocommerce form .form-row textarea:focus{
+  border-color:var(--color-purple-default);box-shadow:0 0 0 3px rgba(155,89,182,.22)
+}
+.woocommerce form .woocommerce-invalid input.input-text{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+.woocommerce-privacy-policy-text{grid-column:1/-1;font-size:.9rem;color:#6b7280;margin:.25rem 0 0}
+
+/* ====== CHECKOUT — Cards da esquerda ===== */
+.woocommerce-billing-fields,
+.woocommerce-shipping-fields,
+.woocommerce-additional-fields{
+  background:#fff;border:1px solid rgba(147,51,234,.25);
+  border-radius:18px;padding:16px;
 }
 
-/* erro/validação do Woo */
-.woocommerce form .woocommerce-invalid input.input-text {
-  border-color:#ef4444;
-  box-shadow:0 0 0 3px rgba(239,68,68,.18);
+/* GRID base (será sobrescrito para 1 coluna no final) */
+.woocommerce-checkout .woocommerce-billing-fields__field-wrapper,
+.woocommerce-checkout .woocommerce-shipping-fields__field-wrapper{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:14px;
+}
+@media (max-width: 767.98px){
+  .woocommerce-checkout .woocommerce-billing-fields__field-wrapper,
+  .woocommerce-checkout .woocommerce-shipping-fields__field-wrapper{
+    grid-template-columns:1fr;
+  }
 }
 
-/* aviso de privacidade do Woo – ocupar largura toda e ficar discreto */
-.woocommerce-privacy-policy-text {
-  grid-column:1/-1;
-  font-size:.9rem; color:#6b7280; margin:.25rem 0 0;
+/* Campos que ocupam a linha toda (baseline) */
+.rs-span-2,
+#billing_address_2_field,
+#billing_email_field,
+#order_comments_field{grid-column:1/-1}
+
+/* Estrutura de cada campo */
+.woocommerce-checkout .form-row{
+  display:flex;flex-direction:column;gap:6px;min-height:92px;
 }
-/* Grid para campos do Woo no registro */
-.form-grid { display:grid; gap:16px; }
-@media (min-width: 768px) {
-  .form-grid { grid-template-columns: repeat(2, minmax(0,1fr)); column-gap:20px; }
-  .form-grid .form-row-first,
-  .form-grid .form-row-last { grid-column: span 1 / span 1; }
-  .form-grid .form-row-wide { grid-column: 1 / -1; } /* ocupa 2 colunas */
+.woocommerce-checkout .form-row .woocommerce-input-wrapper{width:100%}
+
+/* Labels & required */
+.rs-label, .woocommerce-checkout .form-row label{display:block;font-weight:600;color:#4b5563;margin:2px 0 6px}
+.woocommerce form .required{color:#8b5cf6}
+
+/* Inputs universais */
+.rs-input,
+.woocommerce form .form-row input.input-text,
+.woocommerce form .form-row input[type="text"],
+.woocommerce form .form-row input[type="email"],
+.woocommerce form .form-row input[type="tel"],
+.woocommerce form .form-row input[type="number"],
+.woocommerce form .form-row select,
+.woocommerce form .form-row textarea{
+  border:1px solid #e9d5ff;border-radius:12px;height:44px;
+  padding:0 12px;background:#fff;outline:0;width:100%;
+}
+.woocommerce form .form-row textarea{min-height:110px;padding:10px 12px;height:auto}
+.woocommerce form .form-row input:focus,
+.woocommerce form .form-row select:focus,
+.woocommerce form .form-row textarea:focus,
+.rs-input:focus{box-shadow:0 0 0 4px rgba(147,51,234,.12);border-color:#c4b5fd}
+
+/* Select2 compatível */
+.select2-container .select2-selection--single{
+  height:44px;border:1px solid #e9d5ff;border-radius:12px
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered{
+  line-height:44px;padding-left:12px
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow{
+  height:44px;right:10px
 }
 
-/* ===== Conta (login/registro) — visual unificado ===== */
-.woocommerce-account .woocommerce form .rs-label,
-.woocommerce-account .woocommerce form .form-row label{
-  display:block;
-  margin-bottom:0.375rem;            /* ~mb-1.5 */
-  font-weight:700;                   /* semibold */
-  color:#1f2937;                     /* gray-800 */
+/* (REMOVIDO) — bloco que forçava meia coluna via IDs */
+
+/* País compacto (pill) */
+#billing_country_field.rs-country-compact select{display:none}
+#billing_country_field.rs-country-compact .rs-country-pill{
+  display:flex;align-items:center;height:44px;
+  border:1px solid #e9d5ff;border-radius:12px;padding:0 12px;
+  background:#faf5ff;color:#374151;font-weight:500
 }
 
-/* Inputs, selects e textareas */
-.woocommerce-account .woocommerce form .rs-input,
-.woocommerce-account .woocommerce form .input-text,
-.woocommerce-account .woocommerce form select,
-.woocommerce-account .woocommerce form textarea{
-  width:100%;
-  border:1px solid #e5e7eb;          /* gray-200 (bate com seus dois primeiros) */
-  border-radius:1rem;                /* rounded-2xl */
-  background:rgba(255,255,255,.9);   /* bg-white/90 */
-  padding:0.625rem 0.75rem;          /* py-2.5 px-3 (seus inputs têm px-10 por causa do ícone; sem ícone usamos 12px) */
-  font-size:15px;
-  color:#111827;                     /* gray-900 */
-  box-shadow:0 1px 2px rgba(0,0,0,.04); /* shadow-sm */
-  outline:0;
-  transition:border-color .15s, box-shadow .15s;
+/* ====== CHECKOUT — Card direita (resumo) ===== */
+.woocommerce-checkout-review-order{
+  background:#fff;border:1px solid rgba(147,51,234,.3);
+  border-radius:16px;padding:16px
 }
 
-/* Focus */
-.woocommerce-account .woocommerce form .rs-input:focus,
-.woocommerce-account .woocommerce form .input-text:focus,
-.woocommerce-account .woocommerce form select:focus,
-.woocommerce-account .woocommerce form textarea:focus{
-  border-color: var(--color-purple-default,#6A0DAD);
+/* ====== Pagamentos como “cards” ====== */
+#payment ul.payment_methods{display:grid;gap:10px;list-style:none;margin:0;padding:0}
+#payment ul.payment_methods li{
+  border:1px solid rgba(147,51,234,.25);border-radius:14px;background:#fff;padding:10px 12px;
+  transition:box-shadow .15s, border-color .15s, transform .05s
+}
+#payment ul.payment_methods li:hover{box-shadow:0 0 0 4px rgba(147,51,234,.08)}
+#payment ul.payment_methods li>input{position:absolute;left:-9999px}
+#payment ul.payment_methods li>label{display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:#4b5563}
+#payment ul.payment_methods li input:checked+label{color:#4c1d95}
+#payment ul.payment_methods li .payment_box{display:none}
+#payment ul.payment_methods li input:checked ~ .payment_box{
+  display:block;border:1px solid rgba(147,51,234,.25);background:#faf5ff;border-radius:12px;padding:12px;margin-top:8px
+}
+#payment #place_order{
+  width:100%;height:44px;border-radius:12px;font-weight:700;background:#239a76;color:#fff;border:0
+}
+#payment #place_order:hover{background:#16644d}
+
+/* ===== Forçar 100% de largura dos controles ===== */
+.woocommerce-checkout .form-row .input-text,
+.woocommerce-checkout .form-row input[type="text"],
+.woocommerce-checkout .form-row input[type="email"],
+.woocommerce-checkout .form-row input[type="tel"],
+.woocommerce-checkout .form-row input[type="number"],
+.woocommerce-checkout .form-row select,
+.woocommerce-checkout .form-row textarea,
+.woocommerce-checkout .rs-input{
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box;
+}
+.woocommerce-checkout .form-row .woocommerce-input-wrapper{width:100% !important}
+
+/* Campos que pegam a linha toda */
+.woocommerce-checkout #billing_address_1_field,
+.woocommerce-checkout #billing_address_2_field,
+.woocommerce-checkout #billing_email_field,
+.woocommerce-checkout #order_comments_field{
+  grid-column:1 / -1 !important;
+}
+
+/* (opcional) CEP largo */
+.woocommerce-checkout #billing_postcode_field{ grid-column:1 / -1 !important; }
+
+/* =========================================================
+   OVERRIDE FINAL — Checkout em COLUNA ÚNICA (desktop e mobile)
+   ========================================================= */
+.woocommerce-checkout .woocommerce-billing-fields__field-wrapper,
+.woocommerce-checkout .woocommerce-shipping-fields__field-wrapper{
+  display:grid !important;
+  grid-template-columns: 1fr !important;
+  column-gap: 0 !important;
+  row-gap: 14px !important;
+}
+.woocommerce-checkout .woocommerce-billing-fields__field-wrapper .form-row,
+.woocommerce-checkout .woocommerce-shipping-fields__field-wrapper .form-row{
+  grid-column: 1 / -1 !important;
+  min-height: auto !important;
+}
+
+/* Labels mais presentes */
+.woocommerce-checkout .form-row label{
+  font-weight:700; letter-spacing:.2px;
+}
+
+/* Borda/foco roxos */
+.woocommerce-checkout .form-row .input-text,
+.woocommerce-checkout .form-row select,
+.woocommerce-checkout .form-row textarea{
+  border:2px solid #7c3aed;
+}
+.woocommerce-checkout .form-row .input-text:focus,
+.woocommerce-checkout .form-row select:focus,
+.woocommerce-checkout .form-row textarea:focus{
+  border-color:#6A0DAD;
   box-shadow:0 0 0 3px rgba(106,13,173,.18);
 }
 
-/* Estados de erro */
-.woocommerce form .woocommerce-invalid .rs-input,
-.woocommerce form .woocommerce-invalid .input-text{
-  border-color:#ef4444;
-  box-shadow:0 0 0 3px rgba(239,68,68,.16);
+/* ===== GARANTIA EXTRA: força todos os campos por ID a 100% ===== */
+#billing_first_name_field,#billing_last_name_field,
+#billing_persontype_field,#billing_cpf_field,
+#billing_postcode_field,#billing_country_field,
+#billing_address_1_field,#billing_number_field,
+#billing_neighborhood_field,#billing_city_field,
+#billing_state_field,#billing_phone_field{
+  grid-column: 1 / -1 !important;
 }
 
-/* Grade de campos (duas colunas no desktop) */
-.form-grid{ display:grid; gap:16px; }
-@media (min-width:768px){
-  .form-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:20px; }
-  .form-grid .form-row-first,
-  .form-grid .form-row-last{ grid-column:span 1 / span 1; }
-  .form-grid .form-row-wide{ grid-column:1 / -1; }
+
+
+
+/* === Checkout: compactar espaçamentos entre campos === */
+
+/* Menos espaço entre as linhas do grid */
+.woocommerce-checkout .woocommerce-billing-fields__field-wrapper,
+.woocommerce-checkout .woocommerce-shipping-fields__field-wrapper{
+  row-gap: 1px !important;   /* era 14px */
 }
 
-/* Texto de privacidade do Woo ocupar a largura toda e ficar discreto */
-.woocommerce-privacy-policy-text{ grid-column:1/-1; font-size:.9rem; color:#6b7280; margin-top:.25rem; }
+/* Zera qualquer altura mínima e margens do row */
+.woocommerce-checkout .form-row{
+  min-height: auto !important;
+  margin: 0 !important;
+}
+
+/* Label mais perto do input */
+.woocommerce-checkout .form-row label{
+  margin: 0 0 4px !important;  /* era ~6px */
+}
+
+/* Evita margens extras dentro do wrapper */
+.woocommerce-checkout .form-row .woocommerce-input-wrapper{
+  margin: 0 !important;
+}
+
+/* Inputs um tico mais baixos (opcional) */
+.woocommerce-checkout .form-row .input-text,
+.woocommerce-checkout .form-row select{
+  height: 42px !important;    /* era 44px */
+}
+
+/* Textarea um pouco mais compacto (opcional) */
+.woocommerce-checkout .form-row textarea{
+  min-height: 96px !important; /* era 110px */
+}
+
+/* === Checkout: inputs realmente 100% da largura === */
+
+/* mata floats/heranças de tema e garante largura total do row */
+.woocommerce form .form-row,
+.woocommerce-page form .form-row{
+  float: none !important;
+  width: 100% !important;
+  display: block;
+}
+
+/* wrapper do input ocupa 100% */
+.woocommerce-checkout .form-row .woocommerce-input-wrapper{
+  width: 100% !important;
+  display: block;
+}
+
+/* controles sem max-width escondido por tema */
+.woocommerce-checkout .form-row .input-text,
+.woocommerce-checkout .form-row select,
+.woocommerce-checkout .form-row textarea{
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Select2 com largura total */
+.select2-container{
+  width: 100% !important;
+}
+
+/* “Pílula” do país também estica */
+#billing_country_field.rs-country-compact .rs-country-pill{
+  width: 100%;
+}
+
+/* Ajuste fino: remove qualquer padding lateral do wrapper do row
+   (se o tema tiver colocado) */
+.woocommerce-checkout .form-row{
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+
+/* === Remover a caixa/cinza padrão do Woo === */
+.woocommerce-checkout #payment,
+.woocommerce #payment,
+.woocommerce-page #payment{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* O box que abre quando seleciona método (mantém só nosso estilo) */
+#payment ul.payment_methods li .payment_box{
+  background: #fff !important;           /* ou transparent, se preferir */
+  border: 1px solid rgba(147,51,234,.25) !important;
+  border-radius: 12px !important;
+}
+
+/* Tira qualquer “moldura”/padding extra do wrapper do resumo */
+.woocommerce-checkout #order_review,
+.woocommerce #order_review{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Só para garantir: zera fieldsets e bordas herdadas */
+.woocommerce form .form-row fieldset,
+.woocommerce-page form .form-row fieldset{
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* === "Observações do pedido" — título e espaçamentos === */
+.woocommerce-additional-fields > h3 {
+  margin: 8px 0 6px;
+  font-size: 1rem;            /* mesmo tamanho das labels */
+  font-weight: 700;
+  color: #1f2937;             /* gray-800 */
+}
+
+/* a label do campo */
+#order_comments_field label,
+.woocommerce-additional-fields .form-row label {
+  display: block;
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: #4b5563;             /* gray-600 (mesmo das outras) */
+}
+
+/* wrapper ocupa 100% como os demais */
+#order_comments_field .woocommerce-input-wrapper {
+  width: 100% !important;
+}
+
+/* === textarea com o MESMO estilo dos inputs === */
+#order_comments,
+.woocommerce-additional-fields textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  min-height: 110px;          /* mesma altura que definimos antes */
+  padding: 10px 12px;
+  border: 2px solid #7c3aed;  /* borda roxa igual aos inputs (se você trocou, mantenha) */
+  border-radius: 12px;
+  background: #fff;
+  outline: 0;
+  resize: vertical;           /* pode ajustar para 'none' se não quiser o pegador */
+  transition: border-color .15s, box-shadow .15s;
+}
+
+/* foco igual aos inputs */
+#order_comments:focus,
+.woocommerce-additional-fields textarea:focus {
+  border-color: #6A0DAD;
+  box-shadow: 0 0 0 3px rgba(106, 13, 173, .18);
+}
+
+/* placeholder no mesmo tom dos demais */
+#order_comments::placeholder {
+  color: #9ca3af;             /* gray-400 */
+}
+
+/* remove qualquer margem extra depois do bloco para encaixar no card */
+.woocommerce-additional-fields {
+  margin-bottom: 0;
+}
+
