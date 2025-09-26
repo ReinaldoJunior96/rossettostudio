@@ -36,7 +36,23 @@ add_action('after_setup_theme', function () {
 
 // ====== Enqueue de assets (CSS + JS da busca) ======
 add_action('wp_enqueue_scripts', function () {
+   if (is_checkout()) {
+      // garante que o script base do checkout esteja enfileirado
+      wp_enqueue_script('wc-checkout');
 
+      $inline = <<<JS
+        (function($){
+            $(function(){
+                // dá um micro atraso pro DOM estabilizar e dispara o update
+                setTimeout(function(){
+                    $(document.body).trigger('update_checkout');
+                }, 80);
+            });
+        })(jQuery);
+        JS;
+
+      wp_add_inline_script('wc-checkout', $inline);
+   }
    if (is_cart()) {
       wp_enqueue_script('wc-cart');
       wp_enqueue_script('wc-country-select');
@@ -682,36 +698,31 @@ add_action('woocommerce_after_shipping_rate', function ($rate) {
 
 
 /**
- * Checkout: manter APENAS o método de frete escolhido no carrinho.
- * Assim, no checkout some a lista com radios e fica só o resumo do frete.
+ * 1) No CHECKOUT, mantém apenas a tarifa escolhida no carrinho.
+ *    (Somente no primeiro load; se o usuário mexer no endereço, o Woo
+ *     pode recalcular e você volta a ver as opções normalmente.)
  */
 add_filter('woocommerce_package_rates', function ($rates, $package) {
-   // Só no checkout (no carrinho continua normal para o cliente escolher)
-   if (!is_checkout() || is_cart()) {
+   if (! is_checkout()) {
       return $rates;
    }
 
-   $index  = isset($package['package_id']) ? (int) $package['package_id'] : 0;
-   $chosen = (array) WC()->session->get('chosen_shipping_methods', []);
-   $chosen_id = $chosen[$index] ?? '';
+   // Em requisições AJAX (quando o usuário altera endereço, CEP etc.),
+   // deixe o WooCommerce trabalhar normalmente.
+   if (defined('DOING_AJAX') && DOING_AJAX) {
+      return $rates;
+   }
 
-   // Se o escolhido existir nesse pacote, mantém só ele
+   // Recupera o método escolhido no carrinho
+   $chosen = WC()->session ? WC()->session->get('chosen_shipping_methods') : [];
+   $chosen_id = (is_array($chosen) && !empty($chosen[0])) ? $chosen[0] : '';
+
+   // Se o método escolhido existir neste pacote, retorna somente ele
    if ($chosen_id && isset($rates[$chosen_id])) {
       return [$chosen_id => $rates[$chosen_id]];
    }
 
-   // Fallback: escolhe o mais barato e trava
-   if (!empty($rates)) {
-      uasort($rates, function ($a, $b) {
-         return $a->cost <=> $b->cost;
-      });
-      $first_id = key($rates);
-      $only = [$first_id => current($rates)];
-      $chosen[$index] = $first_id;
-      WC()->session->set('chosen_shipping_methods', $chosen);
-      return $only;
-   }
-
+   // Senão, mantém todos (fallback)
    return $rates;
 }, 9999, 2);
 
