@@ -35,6 +35,7 @@
 
     // quando trocar SEDEX/PAC, etc.
     $(document).on('change', 'input[name^="shipping_method["]', function () {
+      alert("aaaaa")
       refreshTotals();
     });
 
