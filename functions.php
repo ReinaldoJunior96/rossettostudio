@@ -320,53 +320,67 @@ add_action('pre_get_posts', function ($q) {
 
 add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');
 
-/* ==============================
-   Checkout – visual & placeholders (mantido)
-============================== */
+/**
+ * Checkout: travar CEP/país/UF de entrega para o que já está no WC()->customer
+ * (definido no carrinho) e impedir que o post de checkout sobrescreva.
+ */
+
+// 1. Pré-preenche e deixa "somente leitura" os campos de CEP
 add_filter('woocommerce_checkout_fields', function ($fields) {
-   $groups = ['billing', 'shipping', 'account', 'order'];
-   foreach ($groups as $group) {
-      if (empty($fields[$group])) continue;
-      foreach ($fields[$group] as $key => &$f) {
-         $f['class'][]       = 'rs-row';
-         $f['label_class'][] = 'rs-label';
-         $f['input_class'][] = 'rs-input';
-         if ($key === 'billing_address_1') $f['placeholder'] = $f['placeholder'] ?? 'Nome da rua';
-         if ($key === 'billing_address_2') {
-            $f['placeholder'] = $f['placeholder'] ?? 'Apartamento, sala, etc. (opcional)';
-            $f['required'] = false;
-         }
-      }
-   }
+   if (!is_checkout()) return $fields;
+
+   $ship_country  = WC()->customer ? WC()->customer->get_shipping_country()  : '';
+   $ship_state    = WC()->customer ? WC()->customer->get_shipping_state()    : '';
+   $ship_postcode = WC()->customer ? WC()->customer->get_shipping_postcode() : '';
+
+   // Defaults nos campos de billing (como você não exibe address de shipping)
    if (isset($fields['billing']['billing_country'])) {
-      $fields['billing']['billing_country']['default'] = 'BR';
-      $fields['billing']['billing_country']['class'][] = 'rs-country-compact';
+      $fields['billing']['billing_country']['default'] = $ship_country ?: 'BR';
    }
-   foreach (['billing_address_1', 'billing_address_2', 'billing_email', 'order_comments'] as $full) {
-      if (isset($fields['billing'][$full])) $fields['billing'][$full]['class'][] = 'rs-span-2';
+   if (isset($fields['billing']['billing_state']) && $ship_state) {
+      $fields['billing']['billing_state']['default'] = $ship_state;
    }
-   $b = &$fields['billing'];
-   $prio = 10;
-   $want = [
-      'billing_first_name',
-      'billing_last_name',
-      'billing_persontype',
-      'billing_cpf',
-      'billing_postcode',
-      'billing_country',
-      'billing_address_1',
-      'billing_number',
-      'billing_neighborhood',
-      'billing_city',
-      'billing_state',
-      'billing_phone',
-      'billing_email',
-      'billing_address_2',
-   ];
-   foreach ($want as $k) if (isset($b[$k])) $b[$k]['priority'] = $prio += 10;
+   if (isset($fields['billing']['billing_postcode']) && $ship_postcode) {
+      $fields['billing']['billing_postcode']['default'] = $ship_postcode;
+      // trava edição (continua sendo enviado no POST)
+      $fields['billing']['billing_postcode']['custom_attributes']['readonly'] = 'readonly';
+   }
+
+   // Se por algum motivo os campos de shipping estiverem presentes, alinhe também:
+   if (isset($fields['shipping']['shipping_country']) && $ship_country) {
+      $fields['shipping']['shipping_country']['default'] = $ship_country;
+      $fields['shipping']['shipping_country']['custom_attributes']['readonly'] = 'readonly';
+   }
+   if (isset($fields['shipping']['shipping_state']) && $ship_state) {
+      $fields['shipping']['shipping_state']['default'] = $ship_state;
+      $fields['shipping']['shipping_state']['custom_attributes']['readonly'] = 'readonly';
+   }
+   if (isset($fields['shipping']['shipping_postcode']) && $ship_postcode) {
+      $fields['shipping']['shipping_postcode']['default'] = $ship_postcode;
+      $fields['shipping']['shipping_postcode']['custom_attributes']['readonly'] = 'readonly';
+   }
 
    return $fields;
-});
+}, 20);
+
+/**
+ * 2. Guarda de servidor: sempre força os dados de SHIPPING que serão usados
+ * no cálculo para o que já está no cliente (definido no carrinho).
+ * Assim, mesmo que algum plugin tente usar o billing_postcode, não muda.
+ */
+add_filter('woocommerce_checkout_posted_data', function ($data) {
+   if (!WC()->customer) return $data;
+
+   $data['shipping_country']  = WC()->customer->get_shipping_country()  ?: ($data['shipping_country']  ?? 'BR');
+   $data['shipping_state']    = WC()->customer->get_shipping_state()    ?: ($data['shipping_state']    ?? '');
+   $data['shipping_postcode'] = WC()->customer->get_shipping_postcode() ?: ($data['shipping_postcode'] ?? '');
+
+   // também podemos alinhar o billing_postcode para refletir o mesmo CEP (opcional)
+   if (!empty($data['shipping_postcode'])) {
+      $data['billing_postcode'] = $data['shipping_postcode'];
+   }
+   return $data;
+}, 10);
 
 add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    if (! is_checkout()) return $args;
