@@ -94,7 +94,7 @@ function renderOptions(options, preselectedRateId) {
     radio.className = 'text-purple-700 focus:ring-purple-500';
 
     const span = document.createElement('span');
-    span.textContent = o.label;
+    span.innerHTML = o.label;
 
     wrap.appendChild(radio);
     wrap.appendChild(span);
