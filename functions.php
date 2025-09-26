@@ -33,9 +33,15 @@ add_action('wp_enqueue_scripts', function () {
    }
 
    if (is_cart()) {
-      wp_enqueue_script('wc-cart');
-      wp_enqueue_script('wc-country-select');
-      wp_enqueue_script('wc-address-i18n');
+      $dir = get_stylesheet_directory();
+      $uri = get_stylesheet_directory_uri();
+      $ship_js = $dir . '/assets/js/cart-shipping.js';
+      if (file_exists($ship_js)) {
+         wp_enqueue_script('rs-cart-shipping', $uri . '/assets/js/cart-shipping.js', ['jquery'], filemtime($ship_js), true);
+         wp_localize_script('rs-cart-shipping', 'WooShip', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+         ]);
+      }
    }
 
    if (class_exists('WooCommerce')) {
@@ -403,3 +409,91 @@ add_action('wp_head', function () {
       }
     </style>';
 });
+
+
+/** Calcula fretes para CEP e retorna opções (rate_id/label/cost) */
+add_action('wp_ajax_calculate_shipping', 'rs_ajax_calculate_shipping');
+add_action('wp_ajax_nopriv_calculate_shipping', 'rs_ajax_calculate_shipping');
+function rs_ajax_calculate_shipping()
+{
+   if (!WC()->cart) WC()->initialize_cart();
+
+   $cep = isset($_POST['cep']) ? preg_replace('/\D+/', '', (string) $_POST['cep']) : '';
+   if (strlen($cep) !== 8) {
+      wp_send_json_error(['message' => 'CEP inválido. Use 8 dígitos.'], 400);
+   }
+
+   // Fixar país BR e CEP de entrega
+   WC()->customer->set_billing_country('BR');
+   WC()->customer->set_shipping_country('BR');
+   WC()->customer->set_billing_postcode($cep);
+   WC()->customer->set_shipping_postcode($cep);
+   WC()->customer->save();
+
+   // Recalcular fretes/totais
+   WC()->cart->calculate_shipping();
+   WC()->cart->calculate_totals();
+
+   $packages = WC()->shipping()->get_packages();
+   $pkg = $packages[0] ?? null;
+   $rates = $pkg['rates'] ?? [];
+
+   $options = [];
+   foreach ($rates as $rate) {
+      /** @var WC_Shipping_Rate $rate */
+      $label = $rate->get_label();
+      $cost  = (float) $rate->get_cost();
+
+      // custo + taxas do método (se houver)
+      $taxes = array_sum((array) $rate->get_taxes());
+      $cost_total = $cost + (float) $taxes;
+
+      $options[] = [
+         'id'    => $rate->get_id(), // ex: "flat_rate:3"
+         'label' => sprintf('%s — %s', $label, wc_price($cost_total)),
+         'cost'  => $cost_total,
+      ];
+   }
+
+   wp_send_json_success(['options' => $options]);
+}
+
+/** Define o método de frete escolhido e recalcula totais */
+add_action('wp_ajax_set_shipping_method', 'rs_ajax_set_shipping_method');
+add_action('wp_ajax_nopriv_set_shipping_method', 'rs_ajax_set_shipping_method');
+function rs_ajax_set_shipping_method()
+{
+   if (!WC()->cart) WC()->initialize_cart();
+
+   $rate_id = isset($_POST['rate_id']) ? wc_clean(wp_unslash($_POST['rate_id'])) : '';
+   if (!$rate_id) wp_send_json_error(['message' => 'rate_id ausente'], 400);
+
+   $chosen = WC()->session->get('chosen_shipping_methods', []);
+   $chosen[0] = $rate_id; // único pacote
+   WC()->session->set('chosen_shipping_methods', $chosen);
+
+   WC()->cart->calculate_totals();
+   wp_send_json_success(['ok' => true]);
+}
+
+/** Limpa método escolhido */
+add_action('wp_ajax_clear_shipping_method', 'rs_ajax_clear_shipping_method');
+add_action('wp_ajax_nopriv_clear_shipping_method', 'rs_ajax_clear_shipping_method');
+function rs_ajax_clear_shipping_method()
+{
+   if (!WC()->cart) WC()->initialize_cart();
+   WC()->session->__unset('chosen_shipping_methods');
+   WC()->cart->calculate_totals();
+   wp_send_json_success(['ok' => true]);
+}
+
+/** Retorna o HTML do box de totais do carrinho (sem reload) */
+add_action('wp_ajax_tail_cart_totals', 'rs_ajax_cart_totals_fragment');
+add_action('wp_ajax_nopriv_tail_cart_totals', 'rs_ajax_cart_totals_fragment');
+function rs_ajax_cart_totals_fragment()
+{
+   ob_start();
+   wc_get_template('cart/cart-totals.php');
+   $html = ob_get_clean();
+   wp_send_json_success(['html' => $html]);
+}

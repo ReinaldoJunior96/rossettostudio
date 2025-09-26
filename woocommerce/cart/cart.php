@@ -39,6 +39,27 @@ do_action('woocommerce_before_cart'); ?> <div class="mx-auto max-w-7xl px-4 sm:p
          </form>
       </div> <!-- Sidebar -->
       <aside class="lg:col-span-4">
+         <!-- FRETE NO CARRINHO -->
+         <form id="shipping-form" class="mb-5">
+            <label for="calculadora-frete" class="block text-sm font-medium text-gray-700 mb-2">
+               Calcular frete (CEP)
+            </label>
+            <div class="flex gap-2">
+               <input id="calculadora-frete" name="cep" inputmode="numeric" maxlength="9"
+                  class="flex-1 rounded-lg border border-purple-300 px-3 py-2"
+                  placeholder="00000-000" />
+               <button id="btn-calcular-frete" type="submit"
+                  class="rounded-lg bg-purple-600 px-4 py-2 text-white font-semibold hover:bg-purple-700 transition">
+                  Calcular
+               </button>
+            </div>
+            <div id="shipping-options" class="mt-3 text-sm"></div>
+            <button type="button" id="limpar-frete"
+               class="mt-2 text-xs text-gray-500 hover:text-gray-700 underline">
+               Limpar frete
+            </button>
+         </form>
+         <!-- /FRETE NO CARRINHO -->
          <div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-6 cart_totals">
             <h2 class="text-xl font-bold text-purple-700 mb-4">Resumo</h2>
             <ul class="space-y-2 text-sm">
