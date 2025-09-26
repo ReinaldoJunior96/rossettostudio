@@ -328,32 +328,43 @@ add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');
 /**
  * Unificar CPF/CNPJ em um único campo "billing_document"
  */
+// 1) Campo único CPF/CNPJ no checkout (e remove os duplicados da UI)
 add_filter('woocommerce_checkout_fields', function ($fields) {
-   if (! is_checkout()) return $fields;
+   if (!is_checkout()) return $fields;
 
-   // Remove os campos nativos/duplicados (de plugins) da tela
+   // tirar da TELA (não do POST)
    unset($fields['billing']['billing_cpf'], $fields['billing']['billing_cnpj']);
 
-   // Adiciona um único campo
+   // adicionar o campo unificado
    $fields['billing']['billing_document'] = [
-      'type'              => 'text',
-      'label'             => 'CPF/CNPJ',
-      'required'          => true,
-      'class'             => ['form-row-first', 'rs-row'],
-      'label_class'       => ['rs-label'],
-      'input_class'       => ['rs-input'],
+      'type'        => 'text',
+      'label'       => 'CPF/CNPJ',
+      'required'    => true,
+      'class'       => ['form-row-first', 'rs-row'],
+      'label_class' => ['rs-label'],
+      'input_class' => ['rs-input'],
+      'placeholder' => 'Digite seu CPF ou CNPJ',
+      'priority'    => 55,
       'custom_attributes' => [
-         'inputmode'   => 'numeric',
+         'inputmode'    => 'numeric',
          'autocomplete' => 'off',
-         'maxlength'   => '18', // suficiente p/ CNPJ mascarado
+         'maxlength'    => '18',
       ],
-      // prioridade perto do CPF antigo (ajuste se quiser)
-      'priority'          => 55,
-      'placeholder'       => 'Digite seu CPF ou CNPJ',
    ];
 
    return $fields;
 }, 30);
+
+// 2) Garante que os campos do plugin NÃO sejam obrigatórios (mesmo ocultos)
+add_filter('woocommerce_checkout_fields', function ($fields) {
+   if (isset($fields['billing']['billing_cpf'])) {
+      $fields['billing']['billing_cpf']['required'] = false;
+   }
+   if (isset($fields['billing']['billing_cnpj'])) {
+      $fields['billing']['billing_cnpj']['required'] = false;
+   }
+   return $fields;
+}, 35);
 
 /**
  * 2. Guarda de servidor: sempre força os dados de SHIPPING que serão usados
@@ -392,19 +403,23 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    return $args;
 }, 10, 3);
 
-// Espelha billing_document para os índices que os plugins esperam (antes da validação)
-add_action('woocommerce_checkout_process', function () {
+// >>> SUBSTITUA o bloco atual "Espelha billing_document..." por este:
+add_action('woocommerce_checkout_process', 'rs_map_document_to_brazil_fields', 1);
+function rs_map_document_to_brazil_fields()
+{
    $doc   = isset($_POST['billing_document']) ? preg_replace('/\D+/', '', (string) $_POST['billing_document']) : '';
    $ptype = isset($_POST['billing_persontype']) ? (int) $_POST['billing_persontype'] : 1; // 1=PF, 2=PJ
 
-   if ($ptype === 2) { // PJ => preencher CNPJ e limpar CPF
+   if ($ptype === 2) {
       $_POST['billing_cnpj'] = $doc;
       $_POST['billing_cpf']  = '';
-   } else {            // PF => preencher CPF e limpar CNPJ
+   } else {
       $_POST['billing_cpf']  = $doc;
       $_POST['billing_cnpj'] = '';
    }
-});
+
+   if ($doc === '') wc_add_notice(__('Informe seu CPF/CNPJ.'), 'error');
+}
 
 
 /* Esconde as opções de frete no checkout (sem mudar a seleção do Woo) */
