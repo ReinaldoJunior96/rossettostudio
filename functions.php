@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Theme functions
+ * Theme functions (refatorado/limpo)
  */
 
 /* ==============================
@@ -16,6 +16,7 @@ add_action('after_setup_theme', function () {
    add_theme_support('wc-product-gallery-slider');
 });
 
+
 /* ==============================
    Enqueue de assets
 ============================== */
@@ -23,13 +24,11 @@ add_action('wp_enqueue_scripts', function () {
    $dir = get_stylesheet_directory();
    $uri = get_stylesheet_directory_uri();
 
+   // WooCommerce (checkout/cart)
    if (is_checkout()) {
-      // scripts padrão do WooCommerce (mantidos)
       wp_enqueue_script('wc-checkout');
       wp_enqueue_script('wc-country-select');
       wp_enqueue_script('wc-address-i18n');
-
-      // REMOVIDO: enqueue de /assets/js/checkout-shipping.js
    }
 
    if (is_cart()) {
@@ -48,7 +47,7 @@ add_action('wp_enqueue_scripts', function () {
       wp_enqueue_style('tailwind', $uri . '/assets/build/app.css', [], filemtime($css_path));
    }
 
-   // tema de cores
+   // Tema de cores
    $theme_css = $dir . '/assets/css/theme.css';
    if (file_exists($theme_css)) {
       wp_enqueue_style('theme-colors', $uri . '/assets/css/theme.css', [], filemtime($theme_css));
@@ -57,7 +56,7 @@ add_action('wp_enqueue_scripts', function () {
    // FontAwesome
    wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css', [], null);
 
-   // Busca
+   // Busca (AJAX)
    $search_js = $dir . '/assets/js/search.js';
    if (file_exists($search_js)) {
       wp_enqueue_script('product-search', $uri . '/assets/js/search.js', [], filemtime($search_js), true);
@@ -67,7 +66,7 @@ add_action('wp_enqueue_scripts', function () {
       ]);
    }
 
-   // Galeria produto
+   // Galeria do produto
    if (is_product()) {
       $pg_js = $dir . '/assets/js/product-gallery.js';
       if (file_exists($pg_js)) {
@@ -75,6 +74,7 @@ add_action('wp_enqueue_scripts', function () {
       }
    }
 });
+
 
 /* ==============================
    AJAX: busca de produtos
@@ -85,7 +85,7 @@ add_action('wp_ajax_nopriv_search_products', 'landing_tailwind_search_products')
 function landing_tailwind_search_products()
 {
    $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
-   if (! wp_verify_nonce($nonce, 'search_products_nonce')) {
+   if (!wp_verify_nonce($nonce, 'search_products_nonce')) {
       wp_send_json_error(['message' => 'Invalid nonce'], 403);
    }
 
@@ -106,7 +106,7 @@ function landing_tailwind_search_products()
    if ($q->have_posts()) {
       foreach ($q->posts as $p) {
          $product = wc_get_product($p->ID);
-         if (! $product) continue;
+         if (!$product) continue;
 
          $img = get_the_post_thumbnail_url($p->ID, 'woocommerce_thumbnail') ?: wc_placeholder_img_src('woocommerce_thumbnail');
 
@@ -122,6 +122,7 @@ function landing_tailwind_search_products()
 
    wp_send_json_success(['items' => $items]);
 }
+
 
 /* ==============================
    Conta / cadastro
@@ -214,6 +215,7 @@ add_action('woocommerce_created_customer', function ($customer_id) {
    }
 });
 
+
 /* ==============================
    Ajustes de conta / menus / estilos
 ============================== */
@@ -230,7 +232,7 @@ add_filter('woocommerce_account_menu_items', function ($items) {
 });
 
 add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
-   if (! is_account_page()) return $args;
+   if (!is_account_page()) return $args;
    $args['label_class'][] = 'rs-label';
    $args['input_class'][] = 'rs-input';
    $args['class'][]       = 'rs-row';
@@ -247,6 +249,7 @@ add_filter('woocommerce_enqueue_styles', function ($styles) {
    if (is_account_page()) return [];
    return $styles;
 }, 99);
+
 
 /* ==============================
    Ícones gateways (exemplo)
@@ -271,10 +274,23 @@ add_filter('woocommerce_gateway_icon', function ($icon, $gateway_id) {
 add_filter('woocommerce_coupons_enabled', '__return_false');
 
 
+/* ==============================
+   Debug frete no carrinho (apenas admin)
+============================== */
+add_action('wp_footer', function () {
+   if (is_cart() && current_user_can('manage_woocommerce')) {
+      $packages = WC()->shipping()->get_packages();
+      echo '<pre style="background:#111;color:#0f0;padding:12px;white-space:pre-wrap;z-index:99999;position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto">';
+      echo "DEBUG FRETE\n\n";
+      print_r($packages);
+      echo '</pre>';
+   }
+});
 
 add_action('woocommerce_after_shipping_rate', function ($rate) {
    error_log(sprintf('[FRETE] %s | %s | R$ %s', $rate->id, $rate->label, $rate->cost));
 });
+
 
 /* ==============================
    Loja / loop / filtros
@@ -294,22 +310,22 @@ add_filter('loop_shop_per_page', function ($n) {
 }, 20);
 
 add_action('pre_get_posts', function ($q) {
-   if (is_admin() || ! $q->is_main_query()) return;
+   if (is_admin() || !$q->is_main_query()) return;
 
    if (is_shop() || is_product_taxonomy() || is_product_category() || is_product_tag()) {
       if (isset($_GET['rs_cats'])) {
          $val   = $_GET['rs_cats'];
          $slugs = is_array($val) ? array_filter($val) : array_filter(explode(',', (string)$val));
          $slugs = array_unique(array_map('sanitize_title', $slugs));
-         if (! empty($slugs)) {
-            $tax = (array) $q->get('tax_query');
+         if (!empty($slugs)) {
+            $tax   = (array) $q->get('tax_query');
             $tax[] = ['taxonomy' => 'product_cat', 'field' => 'slug', 'terms' => $slugs, 'operator' => 'IN'];
             $q->set('tax_query', $tax);
             $q->set('paged', 1);
          }
       }
 
-      // remove auto-esconder "fora de estoque" em dev
+      // não esconder out of stock em dev
       $tax_query = (array) $q->get('tax_query');
       foreach ($tax_query as $i => $tx) {
          if (isset($tx['taxonomy'], $tx['terms']) && $tx['taxonomy'] === 'product_visibility' && is_array($tx['terms'])) {
@@ -323,8 +339,9 @@ add_action('pre_get_posts', function ($q) {
 
 add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');
 
+
 /* ==============================
-   Checkout – visual & placeholders (mantido)
+   Checkout – visual & placeholders
 ============================== */
 add_filter('woocommerce_checkout_fields', function ($fields) {
    $groups = ['billing', 'shipping', 'account', 'order'];
@@ -337,7 +354,7 @@ add_filter('woocommerce_checkout_fields', function ($fields) {
          if ($key === 'billing_address_1') $f['placeholder'] = $f['placeholder'] ?? 'Nome da rua';
          if ($key === 'billing_address_2') {
             $f['placeholder'] = $f['placeholder'] ?? 'Apartamento, sala, etc. (opcional)';
-            $f['required'] = false;
+            $f['required']    = false;
          }
       }
    }
@@ -348,7 +365,8 @@ add_filter('woocommerce_checkout_fields', function ($fields) {
    foreach (['billing_address_1', 'billing_address_2', 'billing_email', 'order_comments'] as $full) {
       if (isset($fields['billing'][$full])) $fields['billing'][$full]['class'][] = 'rs-span-2';
    }
-   $b = &$fields['billing'];
+
+   $b    = &$fields['billing'];
    $prio = 10;
    $want = [
       'billing_first_name',
@@ -372,7 +390,7 @@ add_filter('woocommerce_checkout_fields', function ($fields) {
 });
 
 add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
-   if (! is_checkout()) return $args;
+   if (!is_checkout()) return $args;
    $args['label_class'][] = 'rs-label';
    $args['input_class'][] = 'rs-input';
    $args['class'][]       = 'rs-row';
@@ -380,99 +398,45 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
 }, 10, 3);
 
 
-/* Esconde as opções de frete no checkout (sem mudar a seleção do Woo) */
+/* ==============================
+   Checkout – esconder radios de frete (sem alterar escolha)
+============================== */
 add_action('wp_head', function () {
    if (!is_checkout()) return;
    echo '<style>
-      /* Lista de métodos (radios) */
-      .woocommerce-checkout-review-order .shipping ul#shipping_method,
-      .woocommerce-checkout-review-order .shipping .wc_shipping_rates {
-        display: none !important;
+    .woocommerce-checkout-review-order .shipping ul#shipping_method,
+    .woocommerce-checkout-review-order .shipping .wc_shipping_rates {
+      display: none !important;
+    }
+  </style>';
+});
+
+
+/* ==============================
+   Frete no CARRINHO: calculadora só com CEP
+   + Força país BR para permitir cálculo/exibição
+============================== */
+// Mostra apenas CEP no carrinho
+add_filter('woocommerce_shipping_calculator_enable_country', fn($e) => is_cart() ? false : $e);
+add_filter('woocommerce_shipping_calculator_enable_state',   fn($e) => is_cart() ? false : $e);
+add_filter('woocommerce_shipping_calculator_enable_city',    fn($e) => is_cart() ? false : $e);
+
+// País padrão BR (sessões novas)
+add_filter('woocommerce_customer_default_location', function ($location) {
+   return ['country' => 'BR', 'state' => ''];
+});
+
+// Garante BR nos pacotes quando o usuário só informou CEP
+add_filter('woocommerce_cart_shipping_packages', function ($packages) {
+   if (!is_cart()) return $packages;
+
+   foreach ($packages as &$p) {
+      if (empty($p['destination']['country'])) {
+         $p['destination']['country'] = 'BR';
       }
-    </style>';
-});
-
-
-// Calculadora do CARRINHO apenas com CEP (sem país/estado/cidade)
-add_filter('woocommerce_shipping_calculator_enable_country', function ($enabled) {
-   return is_cart() ? false : $enabled;
-});
-add_filter('woocommerce_shipping_calculator_enable_state', function ($enabled) {
-   return is_cart() ? false : $enabled;
-});
-add_filter('woocommerce_shipping_calculator_enable_city', function ($enabled) {
-   return is_cart() ? false : $enabled;
-});
-
-
-// Zera valores padrão dos campos do checkout (mesmo logado)
-add_filter('woocommerce_checkout_get_value', function ($value, $input) {
-   // Liste aqui os campos que quer SEM valor inicial
-   $blank = [
-      'billing_first_name',
-      'billing_last_name',
-      'billing_company',
-      'billing_cpf',
-      'billing_persontype',
-      'billing_postcode',
-      'billing_address_1',
-      'billing_address_2',
-      'billing_city',
-      'billing_state',
-      'billing_phone',
-      'billing_email',
-      'shipping_first_name',
-      'shipping_last_name',
-      'shipping_company',
-      'shipping_postcode',
-      'shipping_address_1',
-      'shipping_address_2',
-      'shipping_city',
-      'shipping_state'
-   ];
-   return in_array($input, $blank, true) ? '' : $value;
-}, 10, 2);
-
-
-// Não calcular frete no carrinho enquanto não houver CEP
-add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
-   if (is_cart()) {
-      $postcode = WC()->customer ? WC()->customer->get_shipping_postcode() : '';
-      if (empty($postcode) && ! isset($_POST['calc_shipping'])) {
-         return false; // impede cálculo/seleção automática
-      }
+      $p['destination']['state']   = $p['destination']['state']   ?? '';
+      $p['destination']['city']    = $p['destination']['city']    ?? '';
+      $p['destination']['address'] = $p['destination']['address'] ?? '';
    }
-   return $ready;
-}, 999);
-
-// Ao abrir o carrinho “sem CEP”, limpa endereço e método escolhido
-add_action('template_redirect', function () {
-   if (! is_cart()) return;
-
-   $customer = WC()->customer;
-   if (! $customer) return;
-
-   $postcode = $customer->get_shipping_postcode();
-   if (empty($postcode)) {
-      // Garante país BR e zera o resto
-      $customer->set_shipping_country('BR');
-      $customer->set_billing_country('BR');
-
-      $customer->set_shipping_postcode('');
-      $customer->set_shipping_state('');
-      $customer->set_shipping_city('');
-      $customer->set_shipping_address_1('');
-      $customer->set_shipping_address_2('');
-      $customer->save();
-
-      // limpa sessão de frete/método escolhido
-      WC()->session->__unset('chosen_shipping_methods');
-      WC()->session->__unset('shipping_for_package_0');
-   }
-});
-// Se o usuário recalcular frete (POST calc_shipping), zera método escolhido
-add_action('init', function () {
-   if (is_cart() && isset($_POST['calc_shipping'])) {
-      WC()->session->__unset('chosen_shipping_methods');
-   }
-});
+   return $packages;
+}, 10, 1);
