@@ -329,28 +329,29 @@ add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');
  * Unificar CPF/CNPJ em um único campo "billing_document"
  */
 add_filter('woocommerce_checkout_fields', function ($fields) {
-   if (!is_checkout()) return $fields;
+   if (! is_checkout()) return $fields;
 
+   // Remove os campos nativos/duplicados (de plugins) da tela
    unset($fields['billing']['billing_cpf'], $fields['billing']['billing_cnpj']);
 
-   $existing = '';
-   if (is_user_logged_in()) {
-      $uid = get_current_user_id();
-      $existing = get_user_meta($uid, 'billing_cpf', true) ?: get_user_meta($uid, 'billing_cnpj', true);
-   }
-
+   // Adiciona um único campo
    $fields['billing']['billing_document'] = [
-      'type'        => 'text',
-      'label'       => 'CPF/CNPJ',
-      'required'    => true,
-      'class'       => ['form-row-first', 'rs-row'],
-      'label_class' => ['rs-label'],
-      'input_class' => ['rs-input'],
-      'custom_attributes' => ['inputmode' => 'numeric', 'autocomplete' => 'off', 'maxlength' => '18'],
-      'priority'    => 55,
-      'placeholder' => 'Digite seu CPF ou CNPJ',
-      'default'     => $existing,
+      'type'              => 'text',
+      'label'             => 'CPF/CNPJ',
+      'required'          => true,
+      'class'             => ['form-row-first', 'rs-row'],
+      'label_class'       => ['rs-label'],
+      'input_class'       => ['rs-input'],
+      'custom_attributes' => [
+         'inputmode'   => 'numeric',
+         'autocomplete' => 'off',
+         'maxlength'   => '18', // suficiente p/ CNPJ mascarado
+      ],
+      // prioridade perto do CPF antigo (ajuste se quiser)
+      'priority'          => 55,
+      'placeholder'       => 'Digite seu CPF ou CNPJ',
    ];
+
    return $fields;
 }, 30);
 
