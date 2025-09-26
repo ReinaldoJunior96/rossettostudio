@@ -1,47 +1,40 @@
-// assets/js/checkout-shipping.js
+// === Força a atualização do resumo ao trocar o método de frete ===
 (function ($) {
-  $(function () {
-    /* ===== Botão "Calcular frete" (recarrega a página) ===== */
-    var $billingPostcode = $('#billing_postcode');
-    if ($billingPostcode.length && !$('#rs-calc-reload').length) {
-      var $btn = $('<button type="button" id="rs-calc-reload" class="button" style="margin-left:8px">Calcular frete</button>');
-      $billingPostcode.after($btn);
+  function hardRefreshOrderReview() {
+    var $form = $('form.checkout');
 
-      $btn.on('click', function () {
-        var cep = ($billingPostcode.val() || '').replace(/\D/g, '');
-        if (cep.length !== 8) {
-          alert('Informe um CEP válido com 8 dígitos.');
-          $billingPostcode.focus();
-          return;
+    // Monta o payload esperado pelo Woo
+    var data = {
+      security: wc_checkout_params.update_order_review_nonce,
+      country:   $('#billing_country').val(),
+      state:     $('#billing_state').val(),
+      postcode:  $('#billing_postcode').val(),
+      s_country: $('#shipping_country').val(),
+      s_state:   $('#shipping_state').val(),
+      s_postcode:$('#shipping_postcode').val(),
+      has_full_address: true,
+      post_data: $form.serialize()
+    };
+
+    $.ajax({
+      type: 'POST',
+      url: wc_checkout_params.wc_ajax_url.toString().replace('%%endpoint%%', 'update_order_review'),
+      data: data,
+      success: function (resp) {
+        if (resp && resp.fragments) {
+          // Substitui os fragmentos retornados (inclui totais e métodos)
+          $.each(resp.fragments, function (selector, html) {
+            $(selector).replaceWith(html);
+          });
+          $(document.body).trigger('updated_checkout');
+        } else {
+          // fallback
+          $(document.body).trigger('update_checkout');
         }
-        // espelha no shipping e garante país BR (opcional)
-        $('#shipping_postcode').val(cep).trigger('change');
-        $('#billing_country, #shipping_country').each(function () {
-          if (!$(this).val()) $(this).val('BR').trigger('change');
-        });
-
-        // pequeno atraso para o WC salvar CEP e recarrega
-        setTimeout(function () { location.reload(); }, 300);
-      });
-    }
-
-    /* ===== Recalcular total ao trocar o método de frete ===== */
-    let updating = false;
-    function refreshTotals() {
-      if (updating) return;
-      updating = true;
-      $(document.body).trigger('update_checkout');
-    }
-
-    // quando trocar SEDEX/PAC, etc.
-    $(document).on('change', 'input[name^="shipping_method["]', function () {
-      alert("aaaaa")
-      refreshTotals();
+      }
     });
+  }
 
-    // libera flag quando o Woo terminar de atualizar
-    $(document.body).on('updated_checkout', function () {
-      updating = false;
-    });
-  });
+  // Troca de método de frete => força refresh
+  $(document).on('change', 'input[name^="shipping_method["]', hardRefreshOrderReview);
 })(jQuery);
