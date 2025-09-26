@@ -110,17 +110,11 @@ do_action('woocommerce_before_cart');
                <?php
                // Se o carrinho precisa de envio…
                if (WC()->cart->needs_shipping()) {
-
-                  // Se já temos endereço/métodos calculados, mostra as opções/preço:
                   if (WC()->cart->show_shipping()) {
                      wc_cart_totals_shipping_html();
-
-                     // Caso contrário, exibir o calculador de frete aqui mesmo (no resumo):
                   } else {
                      echo '<li class="pt-2">';
-                     woocommerce_shipping_calculator(array(
-                        'button_text' => 'Calcular frete',
-                     ));
+                     woocommerce_shipping_calculator(array('button_text' => 'Calcular frete'));
                      echo '</li>';
                   }
                }
