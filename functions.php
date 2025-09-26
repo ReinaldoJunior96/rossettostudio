@@ -611,16 +611,26 @@ add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
    return $ready;
 }, 10);
 
-// Mostra calculadora de frete no checkout (se ainda não calculado)
-// Checkout: mostra SEMPRE a calculadora de frete acima dos métodos
+// Checkout: nossa própria calculadora (apenas CEP + botão)
 add_action('woocommerce_review_order_before_shipping', function () {
    if (! WC()->cart || ! WC()->cart->needs_shipping()) return;
 
+   $cep = '';
+   if (WC()->customer) {
+      $cep = WC()->customer->get_shipping_postcode() ?: WC()->customer->get_billing_postcode();
+   }
+
    echo '<div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-4 mb-4" id="rs-shipping-calc">';
-   echo '<h3 class="text-lg font-bold text-purple-700 mb-2">Calcular frete</h3>';
-   wc_get_template('cart/shipping-calculator.php', ['button_text' => 'Calcular frete']);
+   echo '  <h3 class="text-lg font-bold text-purple-700 mb-2">Calcular frete</h3>';
+   echo '  <form class="woocommerce-shipping-calculator" action="#" method="post">';
+   echo '    <p class="form-row form-row-wide">';
+   echo '      <input type="text" name="calc_shipping_postcode" placeholder="Seu CEP (apenas números)" value="' . esc_attr($cep) . '" />';
+   echo '    </p>';
+   echo '    <p><button type="submit" class="button">Calcular frete</button></p>';
+   echo '  </form>';
    echo '</div>';
 }, 5);
+
 
 // Deixa só CEP na calculadora
 add_filter('woocommerce_shipping_calculator_enable_country', '__return_false');
