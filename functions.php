@@ -403,19 +403,15 @@ add_action('wp_head', function () {
    FRETE NO CARRINHO – AJAX
 ============================== */
 
-/** Calcula fretes para CEP e retorna opções (rate_id/label/cost) */
+/** Calcula fretes para CEP e retorna opções (rate_id/label/cost) + indisponíveis */
 add_action('wp_ajax_rs_calc_shipping', 'rs_ajax_calc_shipping');
 add_action('wp_ajax_nopriv_rs_calc_shipping', 'rs_ajax_calc_shipping');
 function rs_ajax_calc_shipping()
 {
-   if (null === WC()->cart) {
-      wc_load_cart();
-   }
+   if (null === WC()->cart) wc_load_cart();
 
    $cep = isset($_POST['cep']) ? preg_replace('/\D+/', '', (string) $_POST['cep']) : '';
-   if (strlen($cep) !== 8) {
-      wp_send_json_error(['message' => 'CEP inválido. Use 8 dígitos.'], 400);
-   }
+   if (strlen($cep) !== 8) wp_send_json_error(['message' => 'CEP inválido. Use 8 dígitos.'], 400);
 
    // 1) Fixar país/CEP no cliente
    WC()->customer->set_billing_country('BR');
@@ -424,7 +420,7 @@ function rs_ajax_calc_shipping()
    WC()->customer->set_shipping_postcode($cep);
    WC()->customer->save();
 
-   // 2) Spoof para alguns gateways (ex.: SuperFrete)
+   // 2) Spoof para obrigar cálculo em alguns gateways (ex.: SuperFrete)
    $orig_action = isset($_REQUEST['action']) ? $_REQUEST['action'] : null;
    $_REQUEST['action'] = 'woocommerce_update_order_review';
 
@@ -436,13 +432,14 @@ function rs_ajax_calc_shipping()
    if ($orig_action === null) unset($_REQUEST['action']);
    else $_REQUEST['action'] = $orig_action;
 
-   // 5) Monta resposta
+   // 5) Rates disponíveis
    $packages = WC()->shipping()->get_packages();
    $pkg   = $packages[0] ?? null;
    $rates = $pkg['rates'] ?? [];
 
    $options     = [];
    $rates_debug = [];
+   $got_ids     = []; // ids que realmente vieram (p/ comparar com habilitados)
 
    foreach ($rates as $rate) {
       /** @var WC_Shipping_Rate $rate */
@@ -451,14 +448,17 @@ function rs_ajax_calc_shipping()
       $taxes = array_sum((array) $rate->get_taxes());
       $total = $cost + (float) $taxes;
 
+      $rid = $rate->get_id(); // ex: superfrete_sedex:12
+      $got_ids[] = $rid;
+
       $options[] = [
-         'id'    => $rate->get_id(),
+         'id'    => $rid,
          'label' => sprintf('%s — %s', $label, wc_price($total)),
          'cost'  => $total,
       ];
 
       $rates_debug[] = [
-         'id'          => $rate->get_id(),
+         'id'          => $rid,
          'method_id'   => method_exists($rate, 'get_method_id')   ? $rate->get_method_id()   : null,
          'instance_id' => method_exists($rate, 'get_instance_id') ? $rate->get_instance_id() : null,
          'label'       => $label,
@@ -468,11 +468,81 @@ function rs_ajax_calc_shipping()
       ];
    }
 
-   // <-- Logs de debug no lugar certo
-   if (defined('WP_DEBUG') && WP_DEBUG) {
-      error_log('[RATES_DEBUG] ' . print_r($rates_debug, true));
-      if (empty($rates_debug)) {
-         error_log('[RATES_DEBUG] Nenhuma opção retornada para CEP ' . $cep);
+   // 6) Descobrir serviços habilitados do SuperFrete na zona do CEP
+   $enabled_services = []; // [ 'superfrete_pac' => 'PAC SuperFrete', ... ]
+   try {
+      // Monta um "package" mínimo para achar a zona
+      $lookup_pkg = [
+         'destination' => [
+            'country'  => 'BR',
+            'postcode' => $cep,
+         ],
+      ];
+      if (class_exists('WC_Shipping_Zones')) {
+         $zone  = WC_Shipping_Zones::get_zone_matching_package($lookup_pkg);
+         if ($zone && is_object($zone)) {
+            foreach ($zone->get_shipping_methods(true) as $method) {
+               // pega apenas o método SuperFrete (id/instance_id variam, então testamos pelo id "superfrete" na frente)
+               $m_id = property_exists($method, 'id') ? $method->id : '';
+               if (stripos($m_id, 'superfrete') !== false) {
+                  $settings = (array) ($method->settings ?? []);
+
+                  // Tentativas comuns do plugin para lista de serviços
+                  $raw = $settings['services'] ?? $settings['enabled_services'] ?? $settings['service_list'] ?? null;
+                  if (is_string($raw)) {
+                     $decoded = json_decode($raw, true);
+                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) $raw = $decoded;
+                  }
+
+                  // Se vier algo estruturado, normalize; se não, usa fallback
+                  if (is_array($raw) && !empty($raw)) {
+                     foreach ($raw as $k => $v) {
+                        // aceitamos formatos diferentes: ['superfrete_sedex'=>1] ou [['id'=>'superfrete_sedex','label'=>'SEDEX', 'enabled'=>true]]
+                        if (is_array($v)) {
+                           $id    = $v['id']    ?? $k;
+                           $label = $v['label'] ?? strtoupper(str_replace(['superfrete_', '_'], ' ', $id));
+                           $on    = (isset($v['enabled']) ? (bool)$v['enabled'] : true);
+                           if ($on && $id) $enabled_services[$id] = $label;
+                        } else {
+                           // valor simples "1" habilitado
+                           if ($v && is_string($k)) $enabled_services[$k] = strtoupper(str_replace(['superfrete_', '_'], ['', ' '], $k));
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+   } catch (\Throwable $e) {
+      // ignora – vai cair no fallback abaixo
+   }
+
+   // Fallback: se não conseguimos ler da zona, usa uma lista padrão conhecida
+   if (empty($enabled_services)) {
+      $enabled_services = [
+         'superfrete_pac'        => 'PAC SuperFrete',
+         'superfrete_sedex'      => 'SEDEX SuperFrete',
+         'superfrete_jadlog'     => 'Jadlog SuperFrete',
+         'superfrete_loggi'      => 'Loggi SuperFrete',
+         'superfrete_mini_envio' => 'Mini Envios SuperFrete',
+      ];
+   }
+
+   // 7) Monta “indisponíveis”: serviços habilitados que não vieram nos rates
+   // Os IDs de rate no Woo costumam vir como "service:instance" (ex: superfrete_sedex:12)
+   // então comparamos só o prefixo antes dos ":"
+   $came_prefixes = array_unique(array_map(function ($rid) {
+      return strtolower(strtok($rid, ':')); // parte antes do ":"
+   }, $got_ids));
+
+   $unavailable = [];
+   foreach ($enabled_services as $pref => $label) {
+      if (!in_array(strtolower($pref), $came_prefixes, true)) {
+         $unavailable[] = [
+            'id'    => $pref,                // sem instance id
+            'label' => sprintf('%s — Indisponível para este CEP/itens', $label),
+            'reason' => 'not_returned',       // útil no front pra estilizar
+         ];
       }
    }
 
@@ -483,8 +553,9 @@ function rs_ajax_calc_shipping()
    ] : null;
 
    wp_send_json_success([
-      'options' => $options,
-      'debug'   => [
+      'options'     => $options,     // os disponíveis (selecionáveis)
+      'unavailable' => $unavailable, // os habilitados que não vieram
+      'debug'       => [
          'customer' => [
             'shipping_country'  => WC()->customer->get_shipping_country(),
             'shipping_postcode' => WC()->customer->get_shipping_postcode(),
