@@ -419,23 +419,35 @@ function rs_ajax_calc_shipping()
       wp_send_json_error(['message' => 'CEP inválido. Use 8 dígitos.'], 400);
    }
 
-   // Fixar país BR e CEP de entrega
+   // 1) Fixar país/CEP no cliente
    WC()->customer->set_billing_country('BR');
    WC()->customer->set_shipping_country('BR');
    WC()->customer->set_billing_postcode($cep);
    WC()->customer->set_shipping_postcode($cep);
    WC()->customer->save();
 
-   // Recalcular fretes/totais
+   // 2) SPOOF: alguns gateways (SuperFrete) ignoram AJAX custom.
+   //    Finge que estamos no endpoint do checkout para obrigar o cálculo.
+   $orig_action = isset($_REQUEST['action']) ? $_REQUEST['action'] : null;
+   $_REQUEST['action'] = 'woocommerce_update_order_review';
+
+   // 3) Recalcular shipping + totais
    WC()->cart->calculate_shipping();
    WC()->cart->calculate_totals();
 
-   // Pacotes e rates
-   $packages = WC()->shipping()->get_packages();
-   $pkg = $packages[0] ?? null;
-   $rates = $pkg['rates'] ?? [];
+   // 4) Volta a action original
+   if ($orig_action === null) {
+      unset($_REQUEST['action']);
+   } else {
+      $_REQUEST['action'] = $orig_action;
+   }
 
-   $options = [];
+   // 5) Monta resposta
+   $packages = WC()->shipping()->get_packages();
+   $pkg      = $packages[0] ?? null;
+   $rates    = $pkg['rates'] ?? [];
+
+   $options     = [];
    $rates_debug = [];
 
    foreach ($rates as $rate) {
@@ -446,12 +458,11 @@ function rs_ajax_calc_shipping()
       $total = $cost + (float) $taxes;
 
       $options[] = [
-         'id'    => $rate->get_id(),              // ex: superfrete_sedex:12
-         'label' => sprintf('%s — %s', $label, wc_price($total)),
+         'id'    => $rate->get_id(),                              // ex: superfrete_sedex:12
+         'label' => sprintf('%s — %s', $label, wc_price($total)), // "Sedex — R$ 12,08"
          'cost'  => $total,
       ];
 
-      // DEBUG amigável (sem objetos)
       $rates_debug[] = [
          'id'          => $rate->get_id(),
          'method_id'   => method_exists($rate, 'get_method_id')   ? $rate->get_method_id()   : null,
@@ -463,10 +474,9 @@ function rs_ajax_calc_shipping()
       ];
    }
 
-   // Pacote/destino resumido pra debug
    $pkg_debug = $pkg ? [
-      'contents_cost' => $pkg['contents_cost'] ?? null,
-      'destination'   => $pkg['destination']   ?? [],
+      'contents_cost'   => $pkg['contents_cost'] ?? null,
+      'destination'     => $pkg['destination']   ?? [],
       'applied_coupons' => WC()->cart ? WC()->cart->get_applied_coupons() : [],
    ] : null;
 
