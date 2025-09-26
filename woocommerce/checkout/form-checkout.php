@@ -69,6 +69,18 @@ if (! $checkout->is_registration_enabled() && $checkout->is_registration_require
 
 
 <script>
+   (function() {
+      try {
+         const cep = sessionStorage.getItem('woo_ship_cep') || '';
+         const inp = document.querySelector('#billing_postcode');
+         if (inp && cep && !inp.value) {
+            inp.value = cep;
+         }
+         if (inp) {
+            inp.setAttribute('readonly', 'readonly');
+         }
+      } catch (e) {}
+   })();
    document.addEventListener('DOMContentLoaded', () => {
       /* === 1) Garante visual consistente em TODOS inputs === */
       document.querySelectorAll(
