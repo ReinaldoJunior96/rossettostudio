@@ -36,46 +36,25 @@ add_action('after_setup_theme', function () {
 
 // ====== Enqueue de assets (CSS + JS da busca) ======
 add_action('wp_enqueue_scripts', function () {
-   if (is_checkout()) {
-      // garante que o script base do checkout esteja enfileirado
-      wp_enqueue_script('wc-checkout');          // já vem com o Woo
-      wp_enqueue_script('wc-country-select');    // países/estados
-      wp_enqueue_script('wc-address-i18n');
+ if (is_checkout()) {
+  wp_enqueue_script('wc-checkout');
+  wp_enqueue_script('wc-country-select');
+  wp_enqueue_script('wc-address-i18n');
 
-      $inline = <<<JS
-    (function($){
-      $(function(){
+  $dir  = get_stylesheet_directory();
+  $uri  = get_stylesheet_directory_uri();
+  $file = '/assets/js/checkout-shipping.js';
 
-        // Dispara um update de cara (útil se user já tinha endereço salvo)
-        setTimeout(function(){ $(document.body).trigger('update_checkout'); }, 80);
-
-        // Intercepta submit da calculadora de frete no checkout (sem recarregar)
-        $(document).on('submit', 'form.woocommerce-shipping-calculator', function(e){
-          e.preventDefault();
-
-          var cep = $(this).find('input[name="calc_shipping_postcode"]').val() || '';
-
-          // Copia o CEP para billing/shipping do checkout (se existirem)
-          $('#billing_postcode').val(cep).trigger('change');
-          $('#shipping_postcode').val(cep).trigger('change');
-
-          // Marca país como BR por padrão (ajuda SuperFrete)
-          if ($('#billing_country').length && !$('#billing_country').val()){
-            $('#billing_country').val('BR').trigger('change');
-          }
-          if ($('#shipping_country').length && !$('#shipping_country').val()){
-            $('#shipping_country').val('BR').trigger('change');
-          }
-
-          // Dispara cálculo de frete/total
-          $(document.body).trigger('update_checkout');
-        });
-      });
-    })(jQuery);
-    JS;
-
-      wp_add_inline_script('wc-checkout', $inline);
-   }
+  if (file_exists($dir . $file)) {
+    wp_enqueue_script(
+      'rs-checkout-shipping',
+      $uri . $file,
+      ['jquery','wc-checkout'],
+      filemtime($dir . $file),
+      true
+    );
+  }
+}
    if (is_cart()) {
       wp_enqueue_script('wc-cart');
       wp_enqueue_script('wc-country-select');
@@ -227,9 +206,12 @@ function landing_tailwind_calculate_shipping()
    wp_send_json_success(['options' => $shipping_options]);
 }
 
-add_action('init', function () {
-   if (WC()->session) WC()->session->set('chosen_shipping_methods', []);
-}, 1);
+add_action('template_redirect', function () {
+  if (! is_checkout() || wp_doing_ajax()) return;
+
+  if (WC()->session) {
+    WC()->session->set('chosen_shipping_methods', []);
+  }
 
 // 2. Remove QUALQUER fee (inclui "Frete") que tenha sido adicionado antes
 add_action('woocommerce_cart_calculate_fees', function ($cart) {
@@ -713,29 +695,35 @@ add_action('woocommerce_after_shipping_rate', function ($rate) {
    error_log(sprintf('[FRETE] %s | %s | R$ %s', $rate->id, $rate->label, $rate->cost));
 });
 
-
+add_action('woocommerce_before_checkout_form', function () {
+   if (!WC()->customer) return;
+   $cep = WC()->customer->get_shipping_postcode() ?: WC()->customer->get_billing_postcode();
+   if (!$cep && WC()->session) {
+      WC()->session->set('chosen_shipping_methods', []); // sem pré-seleção
+   }
+}, 1);
 
 /**
  * Esconde TODOS os métodos de frete no checkout enquanto não existir CEP.
  * (Assim o cliente vê só a calculadora e nada “pré-selecionado”.)
  */
-add_filter('woocommerce_package_rates', function ($rates, $package) {
-   if (! is_checkout() || is_admin()) return $rates;
+// add_filter('woocommerce_package_rates', function ($rates, $package) {
+//    if (! is_checkout() || is_admin()) return $rates;
 
-   $postcode = '';
-   if (WC()->customer) {
-      // primeiro tenta o CEP de entrega; se não houver, tenta o de cobrança
-      $postcode = WC()->customer->get_shipping_postcode();
-      if ($postcode === '') $postcode = WC()->customer->get_billing_postcode();
-   }
+//    $postcode = '';
+//    if (WC()->customer) {
+//       // primeiro tenta o CEP de entrega; se não houver, tenta o de cobrança
+//       $postcode = WC()->customer->get_shipping_postcode();
+//       if ($postcode === '') $postcode = WC()->customer->get_billing_postcode();
+//    }
 
-   // Sem CEP => não mostre nenhuma tarifa ainda
-   if ($postcode === '' || !preg_match('/^\d{5}-?\d{3}$/', $postcode)) {
-      return [];
-   }
+//    // Sem CEP => não mostre nenhuma tarifa ainda
+//    if ($postcode === '' || !preg_match('/^\d{5}-?\d{3}$/', $postcode)) {
+//       return [];
+//    }
 
-   return $rates;
-}, 1000, 2);
+//    return $rates;
+// }, 1000, 2);
 
 /**
  * Se o pacote não tiver destino, usa os dados do billing para o cálculo.
