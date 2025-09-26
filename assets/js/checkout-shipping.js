@@ -1,52 +1,73 @@
 // assets/js/checkout-shipping.js
 (function ($) {
-  $(function () {
+  function recalcCheckout() {
+    $(document.body).trigger('update_checkout');
+  }
 
-    // 1) Intercepta o submit da calculadora no CHECKOUT
-    $(document).on('submit', 'form.woocommerce-shipping-calculator', function (e) {
-      e.preventDefault();
+  function handleCalcSubmit(e) {
+    if (e) e.preventDefault();
 
-      var $form = $(this);
-      var cep = ($form.find('input[name="calc_shipping_postcode"]').val() || '').replace(/\D/g, '');
+    var $form = $(this).closest('form.woocommerce-shipping-calculator');
+    if (!$form.length) return;
 
-      if (cep.length !== 8) {
-        // feedback simples — troque por sua UI se quiser
-        alert('Informe um CEP válido com 8 dígitos.');
-        return;
-      }
+    var cep = ($form.find('input[name="calc_shipping_postcode"]').val() || '').replace(/\D/g, '');
+    if (cep.length !== 8) {
+      alert('Informe um CEP válido com 8 dígitos.');
+      return;
+    }
 
-      // Copia CEP para os campos do checkout
-      var $b = $('#billing_postcode');
-      var $s = $('#shipping_postcode');
+    // Copia CEP para billing/shipping do checkout
+    var $b = $('#billing_postcode');
+    var $s = $('#shipping_postcode');
+    if ($b.length) $b.val(cep).trigger('change');
+    if ($s.length) $s.val(cep).trigger('change');
 
-      if ($b.length) $b.val(cep).trigger('change');
-      if ($s.length) $s.val(cep).trigger('change');
+    // País BR se vazio
+    $('#billing_country, #shipping_country').each(function () {
+      if (!$(this).val()) $(this).val('BR').trigger('change');
+    });
 
-      // Garante país BR (ajuda transportadoras nacionais)
-      $('#billing_country, #shipping_country').each(function () {
-        if (!$(this).val()) $(this).val('BR').trigger('change');
-      });
+    // Desabilita botão durante o cálculo
+    var $btn = $form.find('button, input[type="submit"], input[type="button"]').first();
+    var oldTxt = $btn.is('button') ? $btn.text() : $btn.val();
+    $btn.prop('disabled', true);
+    if ($btn.is('button')) $btn.text('Calculando...');
+    else $btn.val('Calculando...');
 
-      // Dispara o recálculo do Woo (tarifas de frete + totais)
-      $(document.body).trigger('update_checkout');
+    // Dispara recálculo
+    recalcCheckout();
 
-      // UX: rola pra seção de frete/resumo após o cálculo
+    // Reabilita quando o Woo terminar
+    $(document.body).one('updated_checkout', function () {
+      $btn.prop('disabled', false);
+      if ($btn.is('button')) $btn.text(oldTxt);
+      else $btn.val(oldTxt);
+
+      // UX: rola para a área de frete / resumo
       var $target = $('#order_review, .woocommerce-checkout-review-order').first();
-      if ($target.length) {
-        $('html,body').animate({ scrollTop: $target.offset().top - 60 }, 300);
-      }
+      if ($target.length) $('html,body').animate({ scrollTop: $target.offset().top - 60 }, 300);
     });
+  }
 
-    // 2) Trocar o método de frete => recalcula totais
+  $(function () {
+    // 1) Intercepta SUBMIT do form
+    $(document).on('submit', 'form.woocommerce-shipping-calculator', handleCalcSubmit);
+
+    // 1.1) Intercepta CLIQUE no botão da calculadora, caso não seja submit
+    $(document).on('click', 'form.woocommerce-shipping-calculator button, form.woocommerce-shipping-calculator input[type="button"], form.woocommerce-shipping-calculator input[type="submit"]', handleCalcSubmit);
+
+    // 2) Trocar método de frete => recalc
     $(document).on('change', 'input[name^="shipping_method["]', function () {
-      $(document.body).trigger('update_checkout');
+      recalcCheckout();
     });
 
-    // 3) Em alguns temas, CEP já vem preenchido; força um cálculo leve
+    // 3) Se já houver CEP, força um cálculo inicial
     setTimeout(function () {
-      // Se já existir CEP em billing/shipping, pede atualização
       var hasCEP = ($('#shipping_postcode').val() || $('#billing_postcode').val() || '').replace(/\D/g, '').length === 8;
-      if (hasCEP) $(document.body).trigger('update_checkout');
+      if (hasCEP) recalcCheckout();
     }, 120);
+
+    // DEBUG opcional (descomente pra ver no console)
+    // console.log('[checkout-shipping.js] carregado');
   });
 })(jQuery);

@@ -612,17 +612,17 @@ add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
 }, 10);
 
 // Mostra calculadora de frete no checkout (se ainda não calculado)
+// Checkout: mostra SEMPRE a calculadora de frete acima dos métodos
 add_action('woocommerce_review_order_before_shipping', function () {
    if (! WC()->cart || ! WC()->cart->needs_shipping()) return;
-   if (WC()->customer && WC()->customer->has_calculated_shipping()) return;
 
-   echo '<div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-4 mb-4">';
+   echo '<div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-4 mb-4" id="rs-shipping-calc">';
    echo '<h3 class="text-lg font-bold text-purple-700 mb-2">Calcular frete</h3>';
-   wc_get_template('cart/shipping-calculator.php', ['button_text' => 'Calcular']);
+   wc_get_template('cart/shipping-calculator.php', ['button_text' => 'Calcular frete']);
    echo '</div>';
 }, 5);
 
-// Calculadora: deixar só CEP
+// Deixa só CEP na calculadora
 add_filter('woocommerce_shipping_calculator_enable_country', '__return_false');
 add_filter('woocommerce_shipping_calculator_enable_state',   '__return_false');
 add_filter('woocommerce_shipping_calculator_enable_city',    '__return_false');
