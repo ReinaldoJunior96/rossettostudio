@@ -107,18 +107,9 @@ do_action('woocommerce_before_cart');
                   <span class="font-semibold"><?php wc_cart_totals_subtotal_html(); ?></span>
                </li>
 
-               <?php
-               // Se o carrinho precisa de envio…
-               if (WC()->cart->needs_shipping()) {
-                  if (WC()->cart->show_shipping()) {
-                     wc_cart_totals_shipping_html();
-                  } else {
-                     echo '<li class="pt-2">';
-                     woocommerce_shipping_calculator(array('button_text' => 'Calcular frete'));
-                     echo '</li>';
-                  }
-               }
-               ?>
+               <li class="text-sm text-gray-500 pt-2">
+                  O frete é calculado na próxima etapa (checkout).
+               </li>
 
                <?php foreach (WC()->cart->get_fees() as $fee) : ?>
                   <li class="flex justify-between">

@@ -36,23 +36,19 @@ add_action('after_setup_theme', function () {
 
 // ====== Enqueue de assets (CSS + JS da busca) ======
 add_action('wp_enqueue_scripts', function () {
-   if (is_checkout()) {
-      // garante que o script base do checkout esteja enfileirado
-      wp_enqueue_script('wc-checkout');
+    if (is_checkout()) {
+        wp_enqueue_script('wc-checkout');          // já vem com o Woo
+        wp_enqueue_script('wc-country-select');    // países/estados
+        wp_enqueue_script('wc-address-i18n');      // validação/endereço
 
-      $inline = <<<JS
-        (function($){
-            $(function(){
-                // dá um micro atraso pro DOM estabilizar e dispara o update
-                setTimeout(function(){
-                    $(document.body).trigger('update_checkout');
-                }, 80);
-            });
-        })(jQuery);
+        // Dispara o update ao carregar (sem precisar dar reload manual)
+        $inline = <<<JS
+        (function($){$(function(){
+            setTimeout(function(){ $(document.body).trigger('update_checkout'); }, 60);
+        });})(jQuery);
         JS;
-
-      wp_add_inline_script('wc-checkout', $inline);
-   }
+        wp_add_inline_script('wc-checkout', $inline);
+    }
    if (is_cart()) {
       wp_enqueue_script('wc-cart');
       wp_enqueue_script('wc-country-select');
@@ -763,3 +759,11 @@ add_action('woocommerce_before_checkout_form', function () {
 
    WC()->session->set('chosen_shipping_methods', $chosen);
 }, 5);
+
+
+
+// Não calcular frete no carrinho (evita SuperFrete/Correios rodarem ali).
+add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
+   if (is_cart()) return false;
+   return $ready;
+}, 10);
