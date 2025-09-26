@@ -227,14 +227,9 @@ function landing_tailwind_calculate_shipping()
    wp_send_json_success(['options' => $shipping_options]);
 }
 
-// Salva custo do frete na sessão quando enviado por POST
-// add_action('init', function () {
-//    if (function_exists('WC') && WC()->session) {
-//       WC()->session->__unset('custom_shipping_cost');     // tua flag
-//       WC()->session->__unset('chosen_shipping_methods');  // força recálculo
-//       WC()->session->__unset('shipping_for_package_0');
-//    }
-// }, 1);
+add_action('init', function () {
+   if (WC()->session) WC()->session->set('chosen_shipping_methods', []);
+}, 1);
 
 // 2. Remove QUALQUER fee (inclui "Frete") que tenha sido adicionado antes
 add_action('woocommerce_cart_calculate_fees', function ($cart) {
@@ -743,44 +738,40 @@ add_filter('woocommerce_package_rates', function ($rates, $package) {
 }, 1000, 2);
 
 /**
- * Checkout: exibir SOMENTE o método de frete já escolhido no carrinho.
- * - Se não houver escolhido ainda, define um (o mais barato) e trava.
- * - Se o método antes escolhido ficar indisponível ao mudar o endereço no checkout,
- *   escolhe o mais barato disponível e mantém travado.
+ * Se o pacote não tiver destino, usa os dados do billing para o cálculo.
  */
-add_action('woocommerce_before_checkout_form', function () {
-   if (is_cart()) return;
+add_filter('woocommerce_cart_shipping_packages', function ($packages) {
+   $cust = WC()->customer;
+   if (! $cust) return $packages;
 
-   // Garante que o carrinho está calculado
-   if (WC()->cart) {
-      WC()->cart->calculate_totals();
+   foreach ($packages as &$p) {
+      $dest = &$p['destination'];
+
+      $has_dest = !empty($dest['postcode']) || !empty($dest['country']);
+      if ($has_dest) continue;
+
+      $dest['postcode'] = $cust->get_shipping_postcode() ?: $cust->get_billing_postcode();
+      $dest['country']  = $cust->get_shipping_country()  ?: $cust->get_billing_country() ?: 'BR';
+      $dest['state']    = $cust->get_shipping_state()    ?: $cust->get_billing_state();
+      $dest['city']     = $cust->get_shipping_city()     ?: $cust->get_billing_city();
+      $dest['address']  = $cust->get_shipping_address_1() ?: $cust->get_billing_address_1();
    }
+   return $packages;
+});
 
-   $chosen = (array) WC()->session->get('chosen_shipping_methods', []);
-   $packages = WC()->shipping()->get_packages();
+add_action('woocommerce_checkout_init', function () {
+   if (! WC()->customer) return;
 
-   foreach ($packages as $i => $pkg) {
-      // Recalcula taxas do pacote e pega as rates atuais
-      $calc = WC()->shipping()->calculate_shipping_for_package($pkg);
-      $rates = isset($calc['rates']) ? $calc['rates'] : [];
+   $cep = WC()->customer->get_shipping_postcode() ?: WC()->customer->get_billing_postcode();
+   $cep = trim((string) $cep);
 
-      // Se não há escolhido ou o escolhido não existe mais, pega o mais barato
-      if (empty($chosen[$i]) || !isset($rates[$chosen[$i]])) {
-         if (!empty($rates)) {
-            // ordena por custo e pega o mais barato
-            uasort($rates, function ($a, $b) {
-               return $a->cost <=> $b->cost;
-            });
-            $first_id = key($rates);
-            $chosen[$i] = $first_id;
-         }
+   if ($cep === '') {
+      WC()->session->set('chosen_shipping_methods', []);
+      if (method_exists(WC()->customer, 'set_calculated_shipping')) {
+         WC()->customer->set_calculated_shipping(false);
       }
    }
-
-   WC()->session->set('chosen_shipping_methods', $chosen);
-}, 5);
-
-
+});
 
 // Não calcular frete no carrinho (evita SuperFrete/Correios rodarem ali).
 add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
