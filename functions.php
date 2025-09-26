@@ -28,13 +28,9 @@ add_action('wp_enqueue_scripts', function () {
       wp_enqueue_script('wc-checkout');
       wp_enqueue_script('wc-country-select');
       wp_enqueue_script('wc-address-i18n');
-
-      // REMOVIDO: enqueue de /assets/js/checkout-shipping.js
    }
 
    if (is_cart()) {
-      $dir = get_stylesheet_directory();
-      $uri = get_stylesheet_directory_uri();
       $ship_js = $dir . '/assets/js/cart-shipping.js';
       if (file_exists($ship_js)) {
          wp_enqueue_script('rs-cart-shipping', $uri . '/assets/js/cart-shipping.js', ['jquery'], filemtime($ship_js), true);
@@ -278,7 +274,6 @@ add_filter('woocommerce_coupons_enabled', '__return_false');
 
 /* ==============================
    Debug frete no carrinho (apenas admin)
-   (opcional: pode remover se quiser)
 ============================== */
 add_action('wp_footer', function () {
    if (is_cart() && current_user_can('manage_woocommerce')) {
@@ -397,26 +392,27 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    return $args;
 }, 10, 3);
 
-
 /* Esconde as opções de frete no checkout (sem mudar a seleção do Woo) */
 add_action('wp_head', function () {
    if (!is_checkout()) return;
    echo '<style>
-      /* Lista de métodos (radios) */
       .woocommerce-checkout-review-order .shipping ul#shipping_method,
-      .woocommerce-checkout-review-order .shipping .wc_shipping_rates {
-        display: none !important;
-      }
-    </style>';
+      .woocommerce-checkout-review-order .shipping .wc_shipping_rates { display: none !important; }
+   </style>';
 });
 
+/* ==============================
+   FRETE NO CARRINHO – AJAX
+============================== */
 
 /** Calcula fretes para CEP e retorna opções (rate_id/label/cost) */
 add_action('wp_ajax_calculate_shipping', 'rs_ajax_calculate_shipping');
 add_action('wp_ajax_nopriv_calculate_shipping', 'rs_ajax_calculate_shipping');
 function rs_ajax_calculate_shipping()
 {
-   if (!WC()->cart) WC()->initialize_cart();
+   if (null === WC()->cart) {
+      wc_load_cart();
+   }
 
    $cep = isset($_POST['cep']) ? preg_replace('/\D+/', '', (string) $_POST['cep']) : '';
    if (strlen($cep) !== 8) {
@@ -443,8 +439,6 @@ function rs_ajax_calculate_shipping()
       /** @var WC_Shipping_Rate $rate */
       $label = $rate->get_label();
       $cost  = (float) $rate->get_cost();
-
-      // custo + taxas do método (se houver)
       $taxes = array_sum((array) $rate->get_taxes());
       $cost_total = $cost + (float) $taxes;
 
@@ -463,7 +457,9 @@ add_action('wp_ajax_set_shipping_method', 'rs_ajax_set_shipping_method');
 add_action('wp_ajax_nopriv_set_shipping_method', 'rs_ajax_set_shipping_method');
 function rs_ajax_set_shipping_method()
 {
-   if (!WC()->cart) WC()->initialize_cart();
+   if (null === WC()->cart) {
+      wc_load_cart();
+   }
 
    $rate_id = isset($_POST['rate_id']) ? wc_clean(wp_unslash($_POST['rate_id'])) : '';
    if (!$rate_id) wp_send_json_error(['message' => 'rate_id ausente'], 400);
@@ -481,19 +477,66 @@ add_action('wp_ajax_clear_shipping_method', 'rs_ajax_clear_shipping_method');
 add_action('wp_ajax_nopriv_clear_shipping_method', 'rs_ajax_clear_shipping_method');
 function rs_ajax_clear_shipping_method()
 {
-   if (!WC()->cart) WC()->initialize_cart();
+   if (null === WC()->cart) {
+      wc_load_cart();
+   }
    WC()->session->__unset('chosen_shipping_methods');
    WC()->cart->calculate_totals();
    wp_send_json_success(['ok' => true]);
 }
 
-/** Retorna o HTML do box de totais do carrinho (sem reload) */
-add_action('wp_ajax_tail_cart_totals', 'rs_ajax_cart_totals_fragment');
-add_action('wp_ajax_nopriv_tail_cart_totals', 'rs_ajax_cart_totals_fragment');
-function rs_ajax_cart_totals_fragment()
+/* ==============================
+   BOTÃO DE TESTE (+R$ 10,00)
+============================== */
+add_action('woocommerce_cart_calculate_fees', function ($cart) {
+   if (is_admin() && !defined('DOING_AJAX')) return;
+   if (!WC()->session) return;
+   $flag = WC()->session->get('rs_add_ten_fee');
+   if (!empty($flag)) {
+      $cart->add_fee('Taxa de teste', 10, false);
+   }
+}, 20, 1);
+
+add_action('wp_ajax_rs_add_ten_fee', 'rs_ajax_add_ten_fee');
+add_action('wp_ajax_nopriv_rs_add_ten_fee', 'rs_ajax_add_ten_fee');
+function rs_ajax_add_ten_fee()
 {
-   ob_start();
-   wc_get_template('cart/cart-totals.php');
-   $html = ob_get_clean();
-   wp_send_json_success(['html' => $html]);
+   if (null === WC()->cart) {
+      wc_load_cart();
+   }
+   WC()->session->set('rs_add_ten_fee', 1);
+   WC()->cart->calculate_totals();
+   wp_send_json_success(['ok' => true]);
+}
+
+add_action('wp_ajax_rs_clear_ten_fee', 'rs_ajax_clear_ten_fee');
+add_action('wp_ajax_nopriv_rs_clear_ten_fee', 'rs_ajax_clear_ten_fee');
+function rs_ajax_clear_ten_fee()
+{
+   if (null === WC()->cart) {
+      wc_load_cart();
+   }
+   WC()->session->__unset('rs_add_ten_fee');
+   WC()->cart->calculate_totals();
+   wp_send_json_success(['ok' => true]);
+}
+
+/* ==============================
+   Fragmento AJAX para atualizar o box de totais do carrinho
+   (ÚNICA definição + registro)
+============================== */
+if (! function_exists('rs_ajax_cart_totals_fragment')) {
+   add_action('wp_ajax_tail_cart_totals', 'rs_ajax_cart_totals_fragment');
+   add_action('wp_ajax_nopriv_tail_cart_totals', 'rs_ajax_cart_totals_fragment');
+
+   function rs_ajax_cart_totals_fragment()
+   {
+      if (null === WC()->cart) {
+         wc_load_cart();
+      }
+      ob_start();
+      wc_get_template('cart/cart-totals.php');
+      $html = ob_get_clean();
+      wp_send_json_success(['html' => $html]);
+   }
 }

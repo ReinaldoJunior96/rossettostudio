@@ -37,6 +37,12 @@ do_action('woocommerce_before_cart'); ?> <div class="mx-auto max-w-7xl px-4 sm:p
                <div class="p-4 flex items-center justify-end gap-3"> <?php do_action('woocommerce_cart_actions'); ?> <button type="submit" class="rounded-lg bg-purple-600 px-4 py-2 text-white font-semibold hover:bg-purple-700 transition" name="update_cart" value="<?php esc_attr_e('Update cart', 'woocommerce'); ?>"> Atualizar carrinho </button> <?php wp_nonce_field('woocommerce-cart', 'woocommerce-cart-nonce'); ?> </div>
             </div>
          </form>
+         <!-- BOTÃO DE TESTE: SOMAR R$ 10,00 -->
+         <button id="btn-add-ten" type="button"
+            class="mb-4 w-full rounded-lg bg-amber-500 px-4 py-2 text-white font-semibold hover:bg-amber-600 transition">
+            Somar R$ 10,00 ao total (teste)
+         </button>
+         <!-- /BOTÃO DE TESTE -->
       </div> <!-- Sidebar -->
       <aside class="lg:col-span-4">
          <!-- FRETE NO CARRINHO -->
@@ -70,4 +76,60 @@ do_action('woocommerce_before_cart'); ?> <div class="mx-auto max-w-7xl px-4 sm:p
          </div>
       </aside>
    </div>
-</div> <?php do_action('woocommerce_after_cart'); ?>
+</div>
+
+<script>
+   (function() {
+      const AJAX_URL = "<?php echo esc_url(admin_url('admin-ajax.php')); ?>";
+
+      async function refreshCartTotalsBox() {
+         try {
+            const r = await fetch(AJAX_URL, {
+               method: 'POST',
+               headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+               },
+               body: new URLSearchParams({
+                  action: 'tail_cart_totals'
+               })
+            });
+            const data = await r.json();
+            if (data?.success && data?.data?.html) {
+               const box = document.querySelector('.cart_totals');
+               if (box) box.outerHTML = data.data.html;
+            } else {
+               location.reload();
+            }
+         } catch (e) {
+            location.reload();
+         }
+      }
+
+      const btn = document.getElementById('btn-add-ten');
+      if (btn) {
+         btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            try {
+               await fetch(AJAX_URL, {
+                  method: 'POST',
+                  headers: {
+                     'Content-Type': 'application/x-www-form-urlencoded'
+                  },
+                  body: new URLSearchParams({
+                     action: 'rs_add_ten_fee'
+                  })
+               }).then(r => r.json());
+            } finally {
+               await refreshCartTotalsBox();
+               btn.disabled = false;
+               btn.style.opacity = '1';
+            }
+         });
+      }
+   })();
+</script>
+
+
+
+<?php do_action('woocommerce_after_cart'); ?>
