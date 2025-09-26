@@ -212,6 +212,7 @@ add_action('template_redirect', function () {
   if (WC()->session) {
     WC()->session->set('chosen_shipping_methods', []);
   }
+}
 
 // 2. Remove QUALQUER fee (inclui "Frete") que tenha sido adicionado antes
 add_action('woocommerce_cart_calculate_fees', function ($cart) {
