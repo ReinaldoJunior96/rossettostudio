@@ -14,8 +14,6 @@ function landing_tailwind_clear_shipping_cost()
    if (! function_exists('WC') || ! WC()->session) {
       wp_send_json_error(['message' => 'Sessão WC indisponível'], 500);
    }
-
-   // remove flag e fees e recalcula
    WC()->session->__unset('custom_shipping_cost');
 
    if (WC()->cart) {
@@ -26,7 +24,6 @@ function landing_tailwind_clear_shipping_cost()
       }
       WC()->cart->calculate_totals();
    }
-
    wp_send_json_success(['cleared' => true]);
 }
 // add_action('wp_ajax_clear_shipping_cost', 'landing_tailwind_clear_shipping_cost');
@@ -56,12 +53,10 @@ add_action('wp_enqueue_scripts', function () {
    $uri = get_stylesheet_directory_uri();
 
    if (is_checkout()) {
-      // base do checkout do Woo
       wp_enqueue_script('wc-checkout');
       wp_enqueue_script('wc-country-select');
       wp_enqueue_script('wc-address-i18n');
 
-      // JS externo do checkout (frete/CEP)
       $file = '/assets/js/checkout-shipping.js';
       if (file_exists($dir . $file)) {
          wp_enqueue_script(
@@ -84,7 +79,7 @@ add_action('wp_enqueue_scripts', function () {
       wp_enqueue_script('wc-cart-fragments');
    }
 
-   // Tailwind compilado
+   // Tailwind
    $css_path = $dir . '/assets/build/app.css';
    if (file_exists($css_path)) {
       wp_enqueue_style('tailwind', $uri . '/assets/build/app.css', [], filemtime($css_path));
@@ -96,10 +91,10 @@ add_action('wp_enqueue_scripts', function () {
       wp_enqueue_style('theme-colors', $uri . '/assets/css/theme.css', [], filemtime($theme_css));
    }
 
-   // FontAwesome (CDN)
+   // FontAwesome
    wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css', [], null);
 
-   // JS da busca
+   // Busca
    $search_js = $dir . '/assets/js/search.js';
    if (file_exists($search_js)) {
       wp_enqueue_script('product-search', $uri . '/assets/js/search.js', [], filemtime($search_js), true);
@@ -109,7 +104,7 @@ add_action('wp_enqueue_scripts', function () {
       ]);
    }
 
-   // Galeria do produto
+   // Galeria produto
    if (is_product()) {
       $pg_js = $dir . '/assets/js/product-gallery.js';
       if (file_exists($pg_js)) {
@@ -120,7 +115,7 @@ add_action('wp_enqueue_scripts', function () {
 
 
 /* ==============================
-   AJAX: busca de produtos (typeahead)
+   AJAX: busca de produtos
 ============================== */
 
 add_action('wp_ajax_search_products', 'landing_tailwind_search_products');
@@ -169,39 +164,9 @@ function landing_tailwind_search_products()
 
 
 /* ==============================
-   (exemplo) Endpoint AJAX cálculo frete MOCK
-============================== */
-
-// add_action('wp_ajax_calculate_shipping', 'landing_tailwind_calculate_shipping');
-// add_action('wp_ajax_nopriv_calculate_shipping', 'landing_tailwind_calculate_shipping');
-
-function landing_tailwind_calculate_shipping()
-{
-   $cep = isset($_POST['cep']) ? sanitize_text_field($_POST['cep']) : '';
-   if (empty($cep)) {
-      wp_send_json_error(['message' => 'CEP inválido'], 400);
-   }
-   if (! preg_match('/^\d{8}$/', $cep)) {
-      wp_send_json_error(['message' => 'Por favor, insira um CEP válido (8 dígitos).'], 400);
-   }
-
-   $shipping_options = [
-      ['id' => 'sedex', 'label' => 'Correios Sedex - 3 dias úteis (média)', 'cost' => 25.00],
-      ['id' => 'pac',   'label' => 'Correios PAC - 7 dias úteis (média)',   'cost' => 15.00],
-   ];
-
-   wp_send_json_success(['options' => $shipping_options]);
-}
-
-
-/* ==============================
    Frete/checkout – regras
 ============================== */
 
-/**
- * Zera a escolha de frete somente quando abrir o CHECKOUT (não em AJAX).
- * Evita pré-seleção indevida.
- */
 add_action('template_redirect', function () {
    if (! is_checkout() || wp_doing_ajax()) return;
    if (WC()->session) {
@@ -209,9 +174,6 @@ add_action('template_redirect', function () {
    }
 });
 
-/**
- * Remove quaisquer fees penduradas (inclui "Frete" caso algum plugin tenha adicionado como fee).
- */
 add_action('woocommerce_cart_calculate_fees', function ($cart) {
    if (! $cart) return;
    if (method_exists($cart, 'fees_api') && method_exists($cart->fees_api(), 'remove_all_fees')) {
@@ -221,12 +183,9 @@ add_action('woocommerce_cart_calculate_fees', function ($cart) {
    }
 }, 9999);
 
-/**
- * Salva custo de frete custom em sessão (se usar o endpoint acima).
- */
+// (Opcional) endpoint para salvar custo custom
 // add_action('wp_ajax_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
 // add_action('wp_ajax_nopriv_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
-
 function landing_tailwind_set_shipping_cost()
 {
    $cost = isset($_POST['cost']) ? floatval(wp_unslash($_POST['cost'])) : null;
@@ -242,62 +201,6 @@ function landing_tailwind_set_shipping_cost()
    }
    wp_send_json_success(['saved' => true, 'cost' => $cost]);
 }
-
-/**
- * Fragmento de totais (se precisar puxar via AJAX).
- */
-function landing_tailwind_cart_totals_fragment()
-{
-   if (! function_exists('WC') || ! WC()->cart) {
-      wp_send_json_error(['message' => 'Carrinho indisponível'], 500);
-   }
-   WC()->cart->calculate_totals();
-
-   ob_start(); ?>
-   <div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-6 cart_totals">
-      <h2 class="text-xl font-bold text-purple-700 mb-4">Resumo</h2>
-      <ul class="space-y-2 text-sm">
-         <li class="flex justify-between">
-            <span class="text-gray-700">Subtotal</span>
-            <span class="font-semibold"><?php wc_cart_totals_subtotal_html(); ?></span>
-         </li>
-
-         <?php foreach (WC()->cart->get_fees() as $fee) : ?>
-            <li class="flex justify-between">
-               <span class="text-gray-700"><?php echo esc_html($fee->name); ?></span>
-               <span class="font-semibold"><?php wc_cart_totals_fee_html($fee); ?></span>
-            </li>
-         <?php endforeach; ?>
-
-         <?php if (wc_coupons_enabled()) : ?>
-            <?php foreach (WC()->cart->get_coupons() as $code => $coupon) : ?>
-               <li class="flex justify-between">
-                  <span class="text-gray-700"><?php wc_cart_totals_coupon_label($coupon); ?></span>
-                  <span class="font-semibold"><?php wc_cart_totals_coupon_html($coupon); ?></span>
-               </li>
-            <?php endforeach; ?>
-         <?php endif; ?>
-
-         <li class="flex justify-between text-base pt-2 border-t border-purple-200">
-            <span class="text-gray-900 font-bold">Total</span>
-            <span class="text-2xl font-bold text-black order-total"><?php wc_cart_totals_order_total_html(); ?></span>
-         </li>
-      </ul>
-
-      <p class="cart-proceed mt-6">
-         <a class="button checkout wc-forward block w-full text-center px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition"
-            href="<?php echo esc_url(wc_get_checkout_url()); ?>">
-            Finalizar compra
-         </a>
-      </p>
-   </div>
-<?php
-   $html = ob_get_clean();
-   wp_send_json_success(['html' => $html]);
-}
-add_action('wp_ajax_tail_cart_totals', 'landing_tailwind_cart_totals_fragment');
-add_action('wp_ajax_nopriv_tail_cart_totals', 'landing_tailwind_cart_totals_fragment');
-
 
 /* ==============================
    Conta / cadastro
@@ -343,11 +246,11 @@ add_action('woocommerce_register_post', function ($username, $email, $errors) {
    $req = [
       'billing_first_name' => 'Informe seu nome.',
       'billing_last_name' => 'Informe seu sobrenome.',
-      'billing_phone'     => 'Informe seu telefone.',
-      'billing_postcode'  => 'Informe seu CEP.',
+      'billing_phone' => 'Informe seu telefone.',
+      'billing_postcode' => 'Informe seu CEP.',
       'billing_address_1' => 'Informe seu endereço.',
-      'billing_city'      => 'Informe sua cidade.',
-      'billing_state'     => 'Informe seu estado (UF).',
+      'billing_city' => 'Informe sua cidade.',
+      'billing_state' => 'Informe seu estado (UF).',
    ];
    foreach ($req as $key => $msg) {
       if (empty($_POST[$key]) || trim((string)$_POST[$key]) === '') {
@@ -374,7 +277,6 @@ add_action('woocommerce_created_customer', function ($customer_id) {
    $get = function ($k) {
       return isset($_POST[$k]) ? wc_clean(wp_unslash($_POST[$k])) : '';
    };
-
    $first = $get('billing_first_name');
    $last  = $get('billing_last_name');
    if ($first) {
@@ -570,9 +472,6 @@ add_filter('woocommerce_checkout_fields', function ($fields) {
    return $fields;
 });
 
-/**
- * Único filtro para aplicar classes no CHECKOUT (evita duplicidade).
- */
 add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    if (! is_checkout()) return $args;
    $args['label_class'][] = 'rs-label';
@@ -583,37 +482,23 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
 
 
 /* ==============================
-   Checkout – cálculo e calculadora
+   Checkout – calculadora de frete
 ============================== */
 
-// Se o pacote não tiver destino, usa billing/shipping do cliente
-add_filter('woocommerce_cart_shipping_packages', function ($packages) {
-   $cust = WC()->customer;
-   if (! $cust) return $packages;
+/**
+ * Flag simples para não renderizar a calculadora duas vezes
+ */
+function rs_calc_printed_flag($set = null)
+{
+   static $printed = false;
+   if ($set === true) $printed = true;
+   return $printed;
+}
 
-   foreach ($packages as &$p) {
-      $dest = &$p['destination'];
-      $has_dest = !empty($dest['postcode']) || !empty($dest['country']);
-      if ($has_dest) continue;
-
-      $dest['postcode'] = $cust->get_shipping_postcode() ?: $cust->get_billing_postcode();
-      $dest['country']  = $cust->get_shipping_country()  ?: $cust->get_billing_country() ?: 'BR';
-      $dest['state']    = $cust->get_shipping_state()    ?: $cust->get_billing_state();
-      $dest['city']     = $cust->get_shipping_city()     ?: $cust->get_billing_city();
-      $dest['address']  = $cust->get_shipping_address_1() ?: $cust->get_billing_address_1();
-   }
-   return $packages;
-});
-
-// No carrinho não calcula (só no checkout)
-add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
-   if (is_cart()) return false;
-   return $ready;
-}, 10);
-
-// Checkout: nossa própria calculadora (apenas CEP + botão)
+// Local padrão (antes da tabela de frete)
 add_action('woocommerce_review_order_before_shipping', function () {
    if (! WC()->cart || ! WC()->cart->needs_shipping()) return;
+   if (rs_calc_printed_flag()) return;
 
    $cep = '';
    if (WC()->customer) {
@@ -629,10 +514,34 @@ add_action('woocommerce_review_order_before_shipping', function () {
    echo '    <p><button type="submit" class="button">Calcular frete</button></p>';
    echo '  </form>';
    echo '</div>';
+
+   rs_calc_printed_flag(true);
 }, 5);
 
+// Fallback (caso o template não tenha o hook acima)
+add_action('woocommerce_checkout_before_order_review', function () {
+   if (! WC()->cart || ! WC()->cart->needs_shipping()) return;
+   if (rs_calc_printed_flag()) return;
 
-// Deixa só CEP na calculadora
+   $cep = '';
+   if (WC()->customer) {
+      $cep = WC()->customer->get_shipping_postcode() ?: WC()->customer->get_billing_postcode();
+   }
+
+   echo '<div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-4 mb-4" id="rs-shipping-calc">';
+   echo '  <h3 class="text-lg font-bold text-purple-700 mb-2">Calcular frete</h3>';
+   echo '  <form class="woocommerce-shipping-calculator" action="#" method="post">';
+   echo '    <p class="form-row form-row-wide">';
+   echo '      <input type="text" name="calc_shipping_postcode" placeholder="Seu CEP (apenas números)" value="' . esc_attr($cep) . '" />';
+   echo '    </p>';
+   echo '    <p><button type="submit" class="button">Calcular frete</button></p>';
+   echo '  </form>';
+   echo '</div>';
+
+   rs_calc_printed_flag(true);
+}, 6);
+
+// Deixa só CEP na calculadora (template nativo)
 add_filter('woocommerce_shipping_calculator_enable_country', '__return_false');
 add_filter('woocommerce_shipping_calculator_enable_state',   '__return_false');
 add_filter('woocommerce_shipping_calculator_enable_city',    '__return_false');

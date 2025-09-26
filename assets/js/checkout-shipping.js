@@ -1,73 +1,66 @@
 // assets/js/checkout-shipping.js
 (function ($) {
-  function recalcCheckout() {
-    $(document.body).trigger('update_checkout');
-  }
+  $(function () {
 
-  function handleCalcSubmit(e) {
-    if (e) e.preventDefault();
+    // --- A) Botão inline ao lado do CEP (billing) ---
+    var $billingPostcode = $('#billing_postcode');
+    if ($billingPostcode.length && !$('#rs-calc-inline').length) {
+      var $btn = $('<button type="button" id="rs-calc-inline" class="button" style="margin-left:8px">Calcular frete</button>');
+      $billingPostcode.after($btn);
 
-    var $form = $(this).closest('form.woocommerce-shipping-calculator');
-    if (!$form.length) return;
+      $btn.on('click', function () {
+        var cep = ($billingPostcode.val() || '').replace(/\D/g, '');
+        if (cep.length !== 8) {
+          alert('Informe um CEP válido com 8 dígitos.');
+          $billingPostcode.focus();
+          return;
+        }
 
-    var cep = ($form.find('input[name="calc_shipping_postcode"]').val() || '').replace(/\D/g, '');
-    if (cep.length !== 8) {
-      alert('Informe um CEP válido com 8 dígitos.');
-      return;
+        // espelha para shipping e garante país BR
+        $('#shipping_postcode').val(cep).trigger('change');
+        $('#billing_country, #shipping_country').each(function () {
+          if (!$(this).val()) $(this).val('BR').trigger('change');
+        });
+
+        // força recálculo
+        $(document.body).trigger('update_checkout');
+
+        // rola até a área do pedido
+        var $target = $('#order_review, .woocommerce-checkout-review-order').first();
+        if ($target.length) $('html,body').animate({ scrollTop: $target.offset().top - 60 }, 300);
+      });
     }
 
-    // Copia CEP para billing/shipping do checkout
-    var $b = $('#billing_postcode');
-    var $s = $('#shipping_postcode');
-    if ($b.length) $b.val(cep).trigger('change');
-    if ($s.length) $s.val(cep).trigger('change');
+    // --- B) Intercepta a calculadora (form) — botão dentro da caixinha ---
+    $(document).on('submit', 'form.woocommerce-shipping-calculator', function (e) {
+      e.preventDefault();
+      var $form = $(this);
+      var cep = ($form.find('input[name="calc_shipping_postcode"]').val() || '').replace(/\D/g, '');
+      if (cep.length !== 8) {
+        alert('Informe um CEP válido com 8 dígitos.');
+        return;
+      }
+      $('#billing_postcode').val(cep).trigger('change');
+      $('#shipping_postcode').val(cep).trigger('change');
+      $('#billing_country, #shipping_country').each(function () {
+        if (!$(this).val()) $(this).val('BR').trigger('change');
+      });
+      $(document.body).trigger('update_checkout');
 
-    // País BR se vazio
-    $('#billing_country, #shipping_country').each(function () {
-      if (!$(this).val()) $(this).val('BR').trigger('change');
-    });
-
-    // Desabilita botão durante o cálculo
-    var $btn = $form.find('button, input[type="submit"], input[type="button"]').first();
-    var oldTxt = $btn.is('button') ? $btn.text() : $btn.val();
-    $btn.prop('disabled', true);
-    if ($btn.is('button')) $btn.text('Calculando...');
-    else $btn.val('Calculando...');
-
-    // Dispara recálculo
-    recalcCheckout();
-
-    // Reabilita quando o Woo terminar
-    $(document.body).one('updated_checkout', function () {
-      $btn.prop('disabled', false);
-      if ($btn.is('button')) $btn.text(oldTxt);
-      else $btn.val(oldTxt);
-
-      // UX: rola para a área de frete / resumo
       var $target = $('#order_review, .woocommerce-checkout-review-order').first();
       if ($target.length) $('html,body').animate({ scrollTop: $target.offset().top - 60 }, 300);
     });
-  }
 
-  $(function () {
-    // 1) Intercepta SUBMIT do form
-    $(document).on('submit', 'form.woocommerce-shipping-calculator', handleCalcSubmit);
-
-    // 1.1) Intercepta CLIQUE no botão da calculadora, caso não seja submit
-    $(document).on('click', 'form.woocommerce-shipping-calculator button, form.woocommerce-shipping-calculator input[type="button"], form.woocommerce-shipping-calculator input[type="submit"]', handleCalcSubmit);
-
-    // 2) Trocar método de frete => recalc
+    // --- C) Trocar método de frete => recalc ---
     $(document).on('change', 'input[name^="shipping_method["]', function () {
-      recalcCheckout();
+      $(document.body).trigger('update_checkout');
     });
 
-    // 3) Se já houver CEP, força um cálculo inicial
+    // --- D) Se já tem CEP, faz um cálculo leve ao carregar ---
     setTimeout(function () {
       var hasCEP = ($('#shipping_postcode').val() || $('#billing_postcode').val() || '').replace(/\D/g, '').length === 8;
-      if (hasCEP) recalcCheckout();
-    }, 120);
+      if (hasCEP) $(document.body).trigger('update_checkout');
+    }, 150);
 
-    // DEBUG opcional (descomente pra ver no console)
-    // console.log('[checkout-shipping.js] carregado');
   });
 })(jQuery);
