@@ -545,3 +545,35 @@ add_action('woocommerce_checkout_before_order_review', function () {
 add_filter('woocommerce_shipping_calculator_enable_country', '__return_false');
 add_filter('woocommerce_shipping_calculator_enable_state',   '__return_false');
 add_filter('woocommerce_shipping_calculator_enable_city',    '__return_false');
+
+
+
+
+// === AJAX: definir método de frete escolhido e recalcular ===
+add_action('wp_ajax_rs_set_shipping_method', 'rs_set_shipping_method');
+add_action('wp_ajax_nopriv_rs_set_shipping_method', 'rs_set_shipping_method');
+function rs_set_shipping_method()
+{
+   if (! function_exists('WC') || ! WC()->session) {
+      wp_send_json_error(['message' => 'Sessão WC indisponível'], 500);
+   }
+
+   $method = isset($_POST['method']) ? wc_clean(wp_unslash($_POST['method'])) : '';
+   $index  = isset($_POST['index'])  ? absint($_POST['index']) : 0;
+
+   if ($method === '') {
+      wp_send_json_error(['message' => 'Método inválido'], 400);
+   }
+
+   // Atualiza a lista de escolhidos na sessão
+   $chosen = (array) WC()->session->get('chosen_shipping_methods', []);
+   $chosen[$index] = $method;
+   WC()->session->set('chosen_shipping_methods', $chosen);
+
+   // Recalcula totais
+   if (WC()->cart) {
+      WC()->cart->calculate_totals();
+   }
+
+   wp_send_json_success(['saved' => true, 'chosen' => $chosen]);
+}

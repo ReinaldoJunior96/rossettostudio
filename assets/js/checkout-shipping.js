@@ -1,37 +1,25 @@
-// === Troca de frete -> chama o endpoint update_shipping_method e atualiza totais ===
+// assets/js/checkout-shipping.js
 (function ($) {
-  if (typeof wc_checkout_params === 'undefined') return;
+  // Quando trocar SEDEX/PAC, salva escolha na sessão e atualiza os totais
+  $(document).on('change', 'input[name^="shipping_method["]', function () {
+    var $input = $(this);
+    if (!$input.is(':checked')) return;
 
-  function updateShippingAndTotals() {
-    var $form = $('form.checkout');
+    // shipping_method[0] -> extrai o índice do pacote
+    var name = $input.attr('name');           // ex: "shipping_method[0]"
+    var idx  = (name.match(/\[(\d+)\]/) || [])[1] || 0;
 
-    var data = {
-      security: wc_checkout_params.update_shipping_method_nonce,
-      post_data: $form.serialize() // manda o form junto (endereço, etc.)
-    };
-
-    // inclui o método escolhido (ou todos, se houver múltiplos pacotes)
-    $('input[name^="shipping_method["]').each(function () {
-      if (this.checked) data[this.name] = this.value; // ex: shipping_method[0] = "superfrete:SEDEX"
-    });
-
-    $.ajax({
-      type: 'POST',
-      url: wc_checkout_params.wc_ajax_url.toString().replace('%%endpoint%%', 'update_shipping_method'),
-      data: data,
-      success: function (resp) {
-        // substitui fragmentos (order review, etc.)
-        if (resp && resp.fragments) {
-          $.each(resp.fragments, function (selector, html) {
-            $(selector).replaceWith(html);
-          });
-        }
-        // pede um refresh padrão do checkout (pagamentos, total final)
-        $(document.body).trigger('update_checkout');
+    $.post(
+      // usa o admin-ajax do Woo no front
+      (window.wc_checkout_params && window.wc_checkout_params.ajax_url) || window.ajaxurl || '/wp-admin/admin-ajax.php',
+      {
+        action: 'rs_set_shipping_method',
+        method: $input.val(),                 // ex: "superfrete:SEDEX"
+        index:  parseInt(idx, 10)
       }
+    ).always(function () {
+      // pede o recálculo/refresh padrão (fragmentos + total)
+      $(document.body).trigger('update_checkout');
     });
-  }
-
-  // quando trocar SEDEX/PAC
-  $(document).on('change', 'input[name^="shipping_method["]', updateShippingAndTotals);
+  });
 })(jQuery);
