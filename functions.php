@@ -531,41 +531,7 @@ function rs_ajax_clear_shipping_method()
    wp_send_json_success(['ok' => true]);
 }
 
-/* ==============================
-   BOTÃO DE TESTE (+R$ 10,00)
-============================== */
-add_action('woocommerce_cart_calculate_fees', function ($cart) {
-   if (is_admin() && !defined('DOING_AJAX')) return;
-   if (!WC()->session) return;
-   $flag = WC()->session->get('rs_add_ten_fee');
-   if (!empty($flag)) {
-      $cart->add_fee('Taxa de teste', 10, false);
-   }
-}, 20, 1);
 
-add_action('wp_ajax_rs_add_ten_fee', 'rs_ajax_add_ten_fee');
-add_action('wp_ajax_nopriv_rs_add_ten_fee', 'rs_ajax_add_ten_fee');
-function rs_ajax_add_ten_fee()
-{
-   if (null === WC()->cart) {
-      wc_load_cart();
-   }
-   WC()->session->set('rs_add_ten_fee', 1);
-   WC()->cart->calculate_totals();
-   wp_send_json_success(['ok' => true]);
-}
-
-add_action('wp_ajax_rs_clear_ten_fee', 'rs_ajax_clear_ten_fee');
-add_action('wp_ajax_nopriv_rs_clear_ten_fee', 'rs_ajax_clear_ten_fee');
-function rs_ajax_clear_ten_fee()
-{
-   if (null === WC()->cart) {
-      wc_load_cart();
-   }
-   WC()->session->__unset('rs_add_ten_fee');
-   WC()->cart->calculate_totals();
-   wp_send_json_success(['ok' => true]);
-}
 
 /* ==============================
    Fragmento AJAX para atualizar o box de totais do carrinho

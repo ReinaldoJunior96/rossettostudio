@@ -41,10 +41,7 @@ do_action('woocommerce_before_cart'); ?> <div class="mx-auto max-w-7xl px-4 sm:p
 
          <!-- /BOTÃO DE TESTE -->
       </div> <!-- Sidebar -->
-      <button id="btn-add-ten" type="button"
-         class="mb-4 w-full rounded-lg bg-amber-500 px-4 py-2 text-white font-semibold hover:bg-amber-600 transition">
-         Somar R$ 10,00 ao total (teste)
-      </button>
+
       <aside class="lg:col-span-4">
          <!-- FRETE NO CARRINHO -->
          <form id="shipping-form" class="mb-5">
