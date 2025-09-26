@@ -272,11 +272,7 @@ add_filter('woocommerce_coupons_enabled', '__return_false');
 
 
 
-add_action('woocommerce_after_shipping_rate', function () {
-   if (is_cart() && did_action('woocommerce_after_shipping_rate') === 1) {
-      WC()->session->set('chosen_shipping_methods', []); // limpa na primeira passada
-   }
-}, 9);
+
 
 /* ==============================
    Loja / loop / filtros
@@ -472,12 +468,43 @@ add_action('template_redirect', function () {
       WC()->session->__unset('shipping_for_package_0');
    }
 });
-// Se o usuário recalcular frete (POST calc_shipping), zera método escolhido
+// ---- DEBUG helpers
+function rs_log($msg)
+{
+   if (is_array($msg) || is_object($msg)) $msg = print_r($msg, true);
+   error_log('[CARTDBG] ' . $msg);
+}
+
+// 1) Quando clica "Atualizar" na calculadora
 add_action('init', function () {
    if (is_cart() && isset($_POST['calc_shipping'])) {
-      WC()->session->__unset('chosen_shipping_methods');
+      rs_log('POST calc_shipping -> ' . json_encode($_POST));
+      rs_log('Antes de limpar chosen: ' . print_r(WC()->session->get('chosen_shipping_methods'), true));
    }
 });
+
+// 2) Quais rates chegaram (SuperFrete etc.)
+add_filter('woocommerce_package_rates', function ($rates, $package) {
+   if (!is_cart()) return $rates;
+   rs_log('package_rates | CEP=' . (WC()->customer ? WC()->customer->get_shipping_postcode() : ''));
+   foreach ($rates as $id => $rate) {
+      rs_log("RATE {$id} | {$rate->label} | cost={$rate->cost} | taxes=" . json_encode($rate->taxes));
+   }
+   return $rates;
+}, 50, 2);
+
+// 3) Depois de calcular totais, quanto ficou
+add_action('woocommerce_after_calculate_totals', function ($cart) {
+   if (!is_cart()) return;
+   rs_log('after_calculate_totals | subtotal=' . $cart->get_subtotal() . ' | total=' . $cart->get_total('edit'));
+   rs_log('chosen=' . print_r(WC()->session->get('chosen_shipping_methods'), true));
+}, 50);
+
+// 4) Quando o rate é renderizado
+add_action('woocommerce_after_shipping_rate', function ($rate) {
+   if (!is_cart()) return;
+   rs_log('render rate -> ' . $rate->id . ' | ' . $rate->label . ' | cost=' . $rate->cost);
+}, 10);
 
 add_filter('woocommerce_shipping_calculator_enable_country', fn($e) => is_cart() ? false : $e);
 add_filter('woocommerce_shipping_calculator_enable_state',   fn($e) => is_cart() ? false : $e);
