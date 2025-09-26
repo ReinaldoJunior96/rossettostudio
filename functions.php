@@ -5,35 +5,8 @@
  */
 
 /* ==============================
-   Utilitários / limpeza de frete
-============================== */
-
-// Endpoint AJAX para limpar o frete
-function landing_tailwind_clear_shipping_cost()
-{
-   if (! function_exists('WC') || ! WC()->session) {
-      wp_send_json_error(['message' => 'Sessão WC indisponível'], 500);
-   }
-   WC()->session->__unset('custom_shipping_cost');
-
-   if (WC()->cart) {
-      if (method_exists(WC()->cart, 'fees_api') && method_exists(WC()->cart->fees_api(), 'remove_all_fees')) {
-         WC()->cart->fees_api()->remove_all_fees();
-      } else {
-         WC()->cart->fees = [];
-      }
-      WC()->cart->calculate_totals();
-   }
-   wp_send_json_success(['cleared' => true]);
-}
-// add_action('wp_ajax_clear_shipping_cost', 'landing_tailwind_clear_shipping_cost');
-// add_action('wp_ajax_nopriv_clear_shipping_cost', 'landing_tailwind_clear_shipping_cost');
-
-
-/* ==============================
    Suporte básico do tema
 ============================== */
-
 add_action('after_setup_theme', function () {
    add_theme_support('woocommerce');
    add_theme_support('title-tag');
@@ -43,30 +16,20 @@ add_action('after_setup_theme', function () {
    add_theme_support('wc-product-gallery-slider');
 });
 
-
 /* ==============================
    Enqueue de assets
 ============================== */
-
 add_action('wp_enqueue_scripts', function () {
    $dir = get_stylesheet_directory();
    $uri = get_stylesheet_directory_uri();
 
    if (is_checkout()) {
+      // scripts padrão do WooCommerce (mantidos)
       wp_enqueue_script('wc-checkout');
       wp_enqueue_script('wc-country-select');
       wp_enqueue_script('wc-address-i18n');
 
-      $file = '/assets/js/checkout-shipping.js';
-      if (file_exists($dir . $file)) {
-         wp_enqueue_script(
-            'rs-checkout-shipping',
-            $uri . $file,
-            ['jquery', 'wc-checkout'],
-            filemtime($dir . $file),
-            true
-         );
-      }
+      // REMOVIDO: enqueue de /assets/js/checkout-shipping.js
    }
 
    if (is_cart()) {
@@ -113,11 +76,9 @@ add_action('wp_enqueue_scripts', function () {
    }
 });
 
-
 /* ==============================
    AJAX: busca de produtos
 ============================== */
-
 add_action('wp_ajax_search_products', 'landing_tailwind_search_products');
 add_action('wp_ajax_nopriv_search_products', 'landing_tailwind_search_products');
 
@@ -162,50 +123,9 @@ function landing_tailwind_search_products()
    wp_send_json_success(['items' => $items]);
 }
 
-
-/* ==============================
-   Frete/checkout – regras
-============================== */
-
-add_action('template_redirect', function () {
-   if (! is_checkout() || wp_doing_ajax()) return;
-   if (WC()->session) {
-      WC()->session->set('chosen_shipping_methods', []);
-   }
-});
-
-add_action('woocommerce_cart_calculate_fees', function ($cart) {
-   if (! $cart) return;
-   if (method_exists($cart, 'fees_api') && method_exists($cart->fees_api(), 'remove_all_fees')) {
-      $cart->fees_api()->remove_all_fees();
-   } else {
-      $cart->fees = [];
-   }
-}, 9999);
-
-// (Opcional) endpoint para salvar custo custom
-// add_action('wp_ajax_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
-// add_action('wp_ajax_nopriv_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
-function landing_tailwind_set_shipping_cost()
-{
-   $cost = isset($_POST['cost']) ? floatval(wp_unslash($_POST['cost'])) : null;
-   if (! is_numeric($cost) || $cost < 0) {
-      wp_send_json_error(['message' => 'Custo inválido'], 400);
-   }
-   if (! function_exists('WC') || ! WC()->session) {
-      wp_send_json_error(['message' => 'Sessão WC indisponível'], 500);
-   }
-   WC()->session->set('custom_shipping_cost', $cost);
-   if (WC()->cart) {
-      WC()->cart->calculate_totals();
-   }
-   wp_send_json_success(['saved' => true, 'cost' => $cost]);
-}
-
 /* ==============================
    Conta / cadastro
 ============================== */
-
 add_filter('woocommerce_registration_generate_password', '__return_false', 99);
 
 add_action('woocommerce_register_form', function () {
@@ -245,12 +165,12 @@ add_action('woocommerce_register_post', function ($username, $email, $errors) {
 
    $req = [
       'billing_first_name' => 'Informe seu nome.',
-      'billing_last_name' => 'Informe seu sobrenome.',
-      'billing_phone' => 'Informe seu telefone.',
-      'billing_postcode' => 'Informe seu CEP.',
-      'billing_address_1' => 'Informe seu endereço.',
-      'billing_city' => 'Informe sua cidade.',
-      'billing_state' => 'Informe seu estado (UF).',
+      'billing_last_name'  => 'Informe seu sobrenome.',
+      'billing_phone'      => 'Informe seu telefone.',
+      'billing_postcode'   => 'Informe seu CEP.',
+      'billing_address_1'  => 'Informe seu endereço.',
+      'billing_city'       => 'Informe sua cidade.',
+      'billing_state'      => 'Informe seu estado (UF).',
    ];
    foreach ($req as $key => $msg) {
       if (empty($_POST[$key]) || trim((string)$_POST[$key]) === '') {
@@ -294,11 +214,9 @@ add_action('woocommerce_created_customer', function ($customer_id) {
    }
 });
 
-
 /* ==============================
    Ajustes de conta / menus / estilos
 ============================== */
-
 add_filter('woocommerce_account_menu_items', function ($items) {
    unset($items['downloads']);
    return [
@@ -330,11 +248,9 @@ add_filter('woocommerce_enqueue_styles', function ($styles) {
    return $styles;
 }, 99);
 
-
 /* ==============================
    Ícones gateways (exemplo)
 ============================== */
-
 add_filter('woocommerce_gateway_icon', function ($icon, $gateway_id) {
    $svg_barcode = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="2" height="14" fill="#6b21a8"/><rect x="7" y="5" width="1" height="14" fill="#6b21a8"/><rect x="10" y="5" width="2" height="14" fill="#6b21a8"/><rect x="14" y="5" width="1" height="14" fill="#6b21a8"/><rect x="17" y="5" width="2" height="14" fill="#6b21a8"/></svg>';
    $svg_card    = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="3" stroke="#6b21a8" stroke-width="2"/><rect x="3" y="9" width="18" height="2" fill="#6b21a8"/></svg>';
@@ -354,11 +270,10 @@ add_filter('woocommerce_gateway_icon', function ($icon, $gateway_id) {
 
 add_filter('woocommerce_coupons_enabled', '__return_false');
 
-
 /* ==============================
    Debug frete no carrinho (apenas admin)
+   (opcional: pode remover se quiser)
 ============================== */
-
 add_action('wp_footer', function () {
    if (is_cart() && current_user_can('manage_woocommerce')) {
       $packages = WC()->shipping()->get_packages();
@@ -373,11 +288,9 @@ add_action('woocommerce_after_shipping_rate', function ($rate) {
    error_log(sprintf('[FRETE] %s | %s | R$ %s', $rate->id, $rate->label, $rate->cost));
 });
 
-
 /* ==============================
    Loja / loop / filtros
 ============================== */
-
 add_filter('woocommerce_registration_enabled', '__return_true');
 
 add_filter('template_include', function ($template) {
@@ -422,11 +335,9 @@ add_action('pre_get_posts', function ($q) {
 
 add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');
 
-
 /* ==============================
-   Checkout – visual & placeholders
+   Checkout – visual & placeholders (mantido)
 ============================== */
-
 add_filter('woocommerce_checkout_fields', function ($fields) {
    $groups = ['billing', 'shipping', 'account', 'order'];
    foreach ($groups as $group) {
@@ -479,101 +390,3 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    $args['class'][]       = 'rs-row';
    return $args;
 }, 10, 3);
-
-
-/* ==============================
-   Checkout – calculadora de frete
-============================== */
-
-/**
- * Flag simples para não renderizar a calculadora duas vezes
- */
-function rs_calc_printed_flag($set = null)
-{
-   static $printed = false;
-   if ($set === true) $printed = true;
-   return $printed;
-}
-
-// Local padrão (antes da tabela de frete)
-add_action('woocommerce_review_order_before_shipping', function () {
-   if (! WC()->cart || ! WC()->cart->needs_shipping()) return;
-   if (rs_calc_printed_flag()) return;
-
-   $cep = '';
-   if (WC()->customer) {
-      $cep = WC()->customer->get_shipping_postcode() ?: WC()->customer->get_billing_postcode();
-   }
-
-   echo '<div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-4 mb-4" id="rs-shipping-calc">';
-   echo '  <h3 class="text-lg font-bold text-purple-700 mb-2">Calcular frete</h3>';
-   echo '  <form class="woocommerce-shipping-calculator" action="#" method="post">';
-   echo '    <p class="form-row form-row-wide">';
-   echo '      <input type="text" name="calc_shipping_postcode" placeholder="Seu CEP (apenas números)" value="' . esc_attr($cep) . '" />';
-   echo '    </p>';
-   echo '    <p><button type="submit" class="button">Calcular frete</button></p>';
-   echo '  </form>';
-   echo '</div>';
-
-   rs_calc_printed_flag(true);
-}, 5);
-
-// Fallback (caso o template não tenha o hook acima)
-add_action('woocommerce_checkout_before_order_review', function () {
-   if (! WC()->cart || ! WC()->cart->needs_shipping()) return;
-   if (rs_calc_printed_flag()) return;
-
-   $cep = '';
-   if (WC()->customer) {
-      $cep = WC()->customer->get_shipping_postcode() ?: WC()->customer->get_billing_postcode();
-   }
-
-   echo '<div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-4 mb-4" id="rs-shipping-calc">';
-   echo '  <h3 class="text-lg font-bold text-purple-700 mb-2">Calcular frete</h3>';
-   echo '  <form class="woocommerce-shipping-calculator" action="#" method="post">';
-   echo '    <p class="form-row form-row-wide">';
-   echo '      <input type="text" name="calc_shipping_postcode" placeholder="Seu CEP (apenas números)" value="' . esc_attr($cep) . '" />';
-   echo '    </p>';
-   echo '    <p><button type="submit" class="button">Calcular frete</button></p>';
-   echo '  </form>';
-   echo '</div>';
-
-   rs_calc_printed_flag(true);
-}, 6);
-
-// Deixa só CEP na calculadora (template nativo)
-add_filter('woocommerce_shipping_calculator_enable_country', '__return_false');
-add_filter('woocommerce_shipping_calculator_enable_state',   '__return_false');
-add_filter('woocommerce_shipping_calculator_enable_city',    '__return_false');
-
-
-
-
-// === AJAX: definir método de frete escolhido e recalcular ===
-add_action('wp_ajax_rs_set_shipping_method', 'rs_set_shipping_method');
-add_action('wp_ajax_nopriv_rs_set_shipping_method', 'rs_set_shipping_method');
-function rs_set_shipping_method()
-{
-   if (! function_exists('WC') || ! WC()->session) {
-      wp_send_json_error(['message' => 'Sessão WC indisponível'], 500);
-   }
-
-   $method = isset($_POST['method']) ? wc_clean(wp_unslash($_POST['method'])) : '';
-   $index  = isset($_POST['index'])  ? absint($_POST['index']) : 0;
-
-   if ($method === '') {
-      wp_send_json_error(['message' => 'Método inválido'], 400);
-   }
-
-   // Atualiza a lista de escolhidos na sessão
-   $chosen = (array) WC()->session->get('chosen_shipping_methods', []);
-   $chosen[$index] = $method;
-   WC()->session->set('chosen_shipping_methods', $chosen);
-
-   // Recalcula totais
-   if (WC()->cart) {
-      WC()->cart->calculate_totals();
-   }
-
-   wp_send_json_success(['saved' => true, 'chosen' => $chosen]);
-}
