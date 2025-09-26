@@ -395,3 +395,7 @@ a.added_to_cart.wc-forward{display:none!important}
 /* Deixa a calculadora visível no carrinho */
 .woocommerce .shipping-calculator-button{ display:none !important; }
 .woocommerce .shipping-calculator-form{ display:block !important; }
+
+
+/* Só no checkout, esconde os radios e deixa o texto/valor */
+.woocommerce-checkout .shipping-methods input[type="radio"] { display: none !important; }
