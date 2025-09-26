@@ -106,3 +106,39 @@ if (! $checkout->is_registration_enabled() && $checkout->is_registration_require
       }
    });
 </script>
+
+<script>
+   (function() {
+      function d(s) {
+         return String(s || '').replace(/\D+/g, '');
+      }
+
+      function cpf(v) {
+         v = d(v).slice(0, 11);
+         return v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+      }
+
+      function cnpj(v) {
+         v = d(v).slice(0, 14);
+         return v.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+      }
+
+      function type() {
+         const s = document.querySelector('#billing_persontype');
+         return s ? parseInt(s.value || '1', 10) : 1;
+      }
+
+      function mask() {
+         const i = document.querySelector('#billing_document');
+         if (!i) return;
+         const t = type();
+         i.value = t === 2 ? cnpj(i.value) : cpf(i.value);
+         i.placeholder = t === 2 ? '00.000.000/0000-00' : '000.000.000-00';
+      }
+      document.addEventListener('input', e => {
+         if (e.target?.id === 'billing_document') mask();
+      });
+      document.querySelector('#billing_persontype')?.addEventListener('change', mask);
+      mask();
+   })();
+</script>
