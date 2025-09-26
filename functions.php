@@ -432,3 +432,51 @@ add_filter('woocommerce_checkout_get_value', function ($value, $input) {
    ];
    return in_array($input, $blank, true) ? '' : $value;
 }, 10, 2);
+
+
+// Não calcular frete no carrinho enquanto não houver CEP
+add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
+   if (is_cart()) {
+      $postcode = WC()->customer ? WC()->customer->get_shipping_postcode() : '';
+      if (empty($postcode) && ! isset($_POST['calc_shipping'])) {
+         return false; // impede cálculo/seleção automática
+      }
+   }
+   return $ready;
+}, 999);
+
+// Ao abrir o carrinho “sem CEP”, limpa endereço e método escolhido
+add_action('template_redirect', function () {
+   if (! is_cart()) return;
+
+   $customer = WC()->customer;
+   if (! $customer) return;
+
+   $postcode = $customer->get_shipping_postcode();
+   if (empty($postcode)) {
+      // Garante país BR e zera o resto
+      $customer->set_shipping_country('BR');
+      $customer->set_billing_country('BR');
+
+      $customer->set_shipping_postcode('');
+      $customer->set_shipping_state('');
+      $customer->set_shipping_city('');
+      $customer->set_shipping_address_1('');
+      $customer->set_shipping_address_2('');
+      $customer->save();
+
+      // limpa sessão de frete/método escolhido
+      WC()->session->__unset('chosen_shipping_methods');
+      WC()->session->__unset('shipping_for_package_0');
+   }
+});
+// Se o usuário recalcular frete (POST calc_shipping), zera método escolhido
+add_action('init', function () {
+   if (is_cart() && isset($_POST['calc_shipping'])) {
+      WC()->session->__unset('chosen_shipping_methods');
+   }
+});
+
+add_filter('woocommerce_shipping_calculator_enable_country', fn($e) => is_cart() ? false : $e);
+add_filter('woocommerce_shipping_calculator_enable_state',   fn($e) => is_cart() ? false : $e);
+add_filter('woocommerce_shipping_calculator_enable_city',    fn($e) => is_cart() ? false : $e);
