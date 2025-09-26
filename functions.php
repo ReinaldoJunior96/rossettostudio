@@ -272,9 +272,11 @@ add_filter('woocommerce_coupons_enabled', '__return_false');
 
 
 
-add_action('woocommerce_after_shipping_rate', function ($rate) {
-   error_log(sprintf('[FRETE] %s | %s | R$ %s', $rate->id, $rate->label, $rate->cost));
-});
+add_action('woocommerce_after_shipping_rate', function () {
+   if (is_cart() && did_action('woocommerce_after_shipping_rate') === 1) {
+      WC()->session->set('chosen_shipping_methods', []); // limpa na primeira passada
+   }
+}, 9);
 
 /* ==============================
    Loja / loop / filtros
