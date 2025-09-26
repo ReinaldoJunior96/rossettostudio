@@ -83,62 +83,53 @@ do_action('woocommerce_before_cart');
                      endforeach; ?>
                   </tbody>
                </table>
+               <div class="p-4 flex items-center justify-end gap-3">
+                  <?php do_action('woocommerce_cart_actions'); ?>
+                  <button type="submit" class="rounded-lg bg-purple-600 px-4 py-2 text-white font-semibold hover:bg-purple-700 transition" name="update_cart" value="<?php esc_attr_e('Update cart', 'woocommerce'); ?>">
+                     Atualizar carrinho
+                  </button>
+                  <?php wp_nonce_field('woocommerce-cart', 'woocommerce-cart-nonce'); ?>
+               </div>
             </div>
          </form>
 
-         <!-- Calcular Frete -->
-         <div class="mt-10">
-            <div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-6">
-               <h2 class="text-xl font-bold text-purple-700 mb-4">Calcular frete</h2>
 
-               <form id="shipping-form"
-                  class="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3"
-                  method="post"
-                  action="<?php echo esc_url(wc_get_cart_url()); ?>">
-                  <input id="calculadora-frete" name="cep" type="text" inputmode="numeric"
-                     placeholder="Digite seu CEP"
-                     class="h-11 w-full rounded-xl border-2 border-purple-200 px-4
-                    focus:border-purple-500 focus:ring-0 placeholder:text-gray-400" />
-
-                  <button id="btn-calcular-frete" type="submit"
-                     class="h-11 px-5 rounded-xl bg-purple-700 text-white font-semibold
-                     hover:bg-purple-800 transition">
-                     CALCULAR
-                  </button>
-
-                  <!-- <button id="limpar-frete" type="button"
-                     class="h-11 px-5 rounded-xl bg-gray-100 text-purple-700 font-semibold
-                     hover:bg-gray-200 transition">
-                     Limpar frete
-                  </button> -->
-               </form>
-
-               <!-- Opções de envio -->
-               <div id="shipping-options"
-                  role="radiogroup"
-                  class="mt-5 space-y-3"></div>
-            </div>
-         </div>
       </div>
 
       <!-- Sidebar -->
       <aside class="lg:col-span-4">
          <div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-6 cart_totals">
             <h2 class="text-xl font-bold text-purple-700 mb-4">Resumo</h2>
+
             <ul class="space-y-2 text-sm">
                <li class="flex justify-between">
                   <span class="text-gray-700">Subtotal</span>
-                  <span class="font-semibold">
-                     <?php wc_cart_totals_subtotal_html(); ?>
-                  </span>
+                  <span class="font-semibold"><?php wc_cart_totals_subtotal_html(); ?></span>
                </li>
+
+               <?php
+               // Se o carrinho precisa de envio…
+               if (WC()->cart->needs_shipping()) {
+
+                  // Se já temos endereço/métodos calculados, mostra as opções/preço:
+                  if (WC()->cart->show_shipping()) {
+                     wc_cart_totals_shipping_html();
+
+                     // Caso contrário, exibir o calculador de frete aqui mesmo (no resumo):
+                  } else {
+                     echo '<li class="pt-2">';
+                     woocommerce_shipping_calculator(array(
+                        'button_text' => 'Calcular frete',
+                     ));
+                     echo '</li>';
+                  }
+               }
+               ?>
 
                <?php foreach (WC()->cart->get_fees() as $fee) : ?>
                   <li class="flex justify-between">
                      <span class="text-gray-700"><?php echo esc_html($fee->name); ?></span>
-                     <span class="font-semibold">
-                        <?php wc_cart_totals_fee_html($fee); ?>
-                     </span>
+                     <span class="font-semibold"><?php wc_cart_totals_fee_html($fee); ?></span>
                   </li>
                <?php endforeach; ?>
 
@@ -153,18 +144,17 @@ do_action('woocommerce_before_cart');
 
                <li class="flex justify-between text-base pt-2 border-t border-purple-200">
                   <span class="text-gray-900 font-bold">Total</span>
-                  <span class="text-2xl font-bold text-black order-total">
-                     <?php wc_cart_totals_order_total_html(); ?>
-                  </span>
+                  <span class="text-2xl font-bold text-black order-total"><?php wc_cart_totals_order_total_html(); ?></span>
                </li>
             </ul>
 
-            <p class="cart-proceed">
-               <a class="button checkout wc-forward" href="<?php echo esc_url(wc_get_checkout_url()); ?>">
+            <p class="cart-proceed mt-6">
+               <a class="button checkout wc-forward block w-full text-center px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition" href="<?php echo esc_url(wc_get_checkout_url()); ?>">
                   Finalizar compra
                </a>
             </p>
          </div>
+
       </aside>
    </div>
 </div>

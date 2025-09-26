@@ -22,8 +22,8 @@ function landing_tailwind_clear_shipping_cost()
 
    wp_send_json_success(['cleared' => true]);
 }
-add_action('wp_ajax_clear_shipping_cost', 'landing_tailwind_clear_shipping_cost');
-add_action('wp_ajax_nopriv_clear_shipping_cost', 'landing_tailwind_clear_shipping_cost');
+// add_action('wp_ajax_clear_shipping_cost', 'landing_tailwind_clear_shipping_cost');
+// add_action('wp_ajax_nopriv_clear_shipping_cost', 'landing_tailwind_clear_shipping_cost');
 // ====== Suporte básico do tema ======
 add_action('after_setup_theme', function () {
    add_theme_support('woocommerce');
@@ -36,6 +36,12 @@ add_action('after_setup_theme', function () {
 
 // ====== Enqueue de assets (CSS + JS da busca) ======
 add_action('wp_enqueue_scripts', function () {
+
+   if (is_cart()) {
+      wp_enqueue_script('wc-cart');
+      wp_enqueue_script('wc-country-select');
+      wp_enqueue_script('wc-address-i18n');
+   }
    if (class_exists('WooCommerce')) {
       wp_enqueue_script('wc-cart-fragments');
    }
@@ -88,22 +94,6 @@ add_action('wp_enqueue_scripts', function () {
       ]);
    }
 
-   // Enfileirar o script de cálculo de frete
-   $shipping_js = $dir . '/assets/js/shipping.js';
-   if (file_exists($shipping_js)) {
-      wp_enqueue_script(
-         'shipping-calculator',
-         $uri . '/assets/js/shipping.js',
-         [], // sem dependências pra não travar se 'product-search' não existir
-         filemtime($shipping_js),
-         true // footer
-      );
-
-      // Passa o ajax_url direto pro shipping.js
-      wp_localize_script('shipping-calculator', 'WooShip', [
-         'ajax_url' => admin_url('admin-ajax.php'),
-      ]);
-   }
    if (is_product()) {
       $pg_js = $dir . '/assets/js/product-gallery.js';
       if (file_exists($pg_js)) {
@@ -164,8 +154,8 @@ function landing_tailwind_search_products()
 }
 
 // Endpoint AJAX para calcular frete
-add_action('wp_ajax_calculate_shipping', 'landing_tailwind_calculate_shipping');
-add_action('wp_ajax_nopriv_calculate_shipping', 'landing_tailwind_calculate_shipping');
+// add_action('wp_ajax_calculate_shipping', 'landing_tailwind_calculate_shipping');
+// add_action('wp_ajax_nopriv_calculate_shipping', 'landing_tailwind_calculate_shipping');
 
 function landing_tailwind_calculate_shipping()
 {
@@ -199,13 +189,13 @@ function landing_tailwind_calculate_shipping()
 }
 
 // Salva custo do frete na sessão quando enviado por POST
-add_action('init', function () {
-   if (function_exists('WC') && WC()->session) {
-      WC()->session->__unset('custom_shipping_cost');     // tua flag
-      WC()->session->__unset('chosen_shipping_methods');  // força recálculo
-      WC()->session->__unset('shipping_for_package_0');
-   }
-}, 1);
+// add_action('init', function () {
+//    if (function_exists('WC') && WC()->session) {
+//       WC()->session->__unset('custom_shipping_cost');     // tua flag
+//       WC()->session->__unset('chosen_shipping_methods');  // força recálculo
+//       WC()->session->__unset('shipping_for_package_0');
+//    }
+// }, 1);
 
 // 2. Remove QUALQUER fee (inclui "Frete") que tenha sido adicionado antes
 add_action('woocommerce_cart_calculate_fees', function ($cart) {
@@ -240,8 +230,8 @@ function landing_tailwind_set_shipping_cost()
 
    wp_send_json_success(['saved' => true, 'cost' => $cost]);
 }
-add_action('wp_ajax_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
-add_action('wp_ajax_nopriv_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
+// add_action('wp_ajax_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
+// add_action('wp_ajax_nopriv_set_shipping_cost', 'landing_tailwind_set_shipping_cost');
 
 
 
@@ -469,30 +459,17 @@ add_action('woocommerce_api_mp_debug_ping', function () {
 });
 
 
-// Opção A) Manter só "Retirar na loja" (sem custo) e escolher por padrão
-add_filter('woocommerce_package_rates', function ($rates) {
-   foreach ($rates as $id => $rate) {
-      if ($rate->method_id !== 'local_pickup') {
-         unset($rates[$id]);
-      } else {
-         $rates[$id]->cost = 0;
-         if (isset($rates[$id]->taxes) && is_array($rates[$id]->taxes)) {
-            foreach ($rates[$id]->taxes as $k => $v) $rates[$id]->taxes[$k] = 0;
-         }
-      }
-   }
-   return $rates;
-}, 9999);
 
-add_filter('woocommerce_shipping_chosen_method', function ($m, $avail) {
-   foreach ($avail as $rate_id => $rate) {
-      if ($rate->method_id === 'local_pickup') return $rate_id;
-   }
-   return $m;
-}, 10, 2);
 
-add_filter('woocommerce_cart_needs_shipping_address', '__return_false');
-add_filter('woocommerce_shipping_show_shipping_calculator', '__return_false');
+// add_filter('woocommerce_shipping_chosen_method', function ($m, $avail) {
+//    foreach ($avail as $rate_id => $rate) {
+//       if ($rate->method_id === 'local_pickup') return $rate_id;
+//    }
+//    return $m;
+// }, 10, 2);
+add_filter('woocommerce_registration_enabled', '__return_true');
+
+
 
 
 // Força usar o template do tema para a Loja/Categorias de produto
