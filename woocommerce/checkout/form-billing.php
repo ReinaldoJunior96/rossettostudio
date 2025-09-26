@@ -4,7 +4,7 @@ defined('ABSPATH') || exit;
 $checkout = WC()->checkout();
 ?>
 <div class="rounded-3xl bg-white ring-1 ring-purple-200/70 shadow-sm p-6">
-   <h3 class="text-lg font-semibold text-gray-900 mb-4"><?php esc_html_e('Billing details', 'woocommerce'); ?></h3>
+   <h3 class="text-lg font-semibold text-gray-900 mb-4"> aaaaa<?php esc_html_e('Billing details', 'woocommerce'); ?></h3>
 
    <?php do_action('woocommerce_before_checkout_billing_form', $checkout); ?>
 
