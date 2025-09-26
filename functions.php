@@ -432,25 +432,3 @@ add_filter('woocommerce_checkout_get_value', function ($value, $input) {
    ];
    return in_array($input, $blank, true) ? '' : $value;
 }, 10, 2);
-
-
-// Garante "BR" como país de destino no CARRINHO quando só informamos o CEP
-add_filter('woocommerce_cart_shipping_packages', function ($packages) {
-   if (! is_cart()) return $packages;
-
-   foreach ($packages as &$p) {
-      if (empty($p['destination']['country'])) {
-         $p['destination']['country'] = 'BR'; // força país
-      }
-      // opcional: se quiser zerar campos que não usa
-      if (!isset($p['destination']['state']))   $p['destination']['state']   = '';
-      if (!isset($p['destination']['city']))    $p['destination']['city']    = '';
-      if (!isset($p['destination']['address'])) $p['destination']['address'] = '';
-   }
-   return $packages;
-}, 10, 1);
-
-// Define local padrão do cliente como BR (ajuda em sessões novas)
-add_filter('woocommerce_customer_default_location', function ($location) {
-   return ['country' => 'BR', 'state' => ''];
-});
