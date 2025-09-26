@@ -43,15 +43,36 @@ add_action('wp_enqueue_scripts', function () {
       wp_enqueue_script('wc-address-i18n');
 
       $inline = <<<JS
-        (function($){
-            $(function(){
-                // dá um micro atraso pro DOM estabilizar e dispara o update
-                setTimeout(function(){
-                    setTimeout(function(){ $(document.body).trigger('update_checkout'); }, 60);
-                }, 80);
-            });
-        })(jQuery);
-        JS;
+    (function($){
+      $(function(){
+
+        // Dispara um update de cara (útil se user já tinha endereço salvo)
+        setTimeout(function(){ $(document.body).trigger('update_checkout'); }, 80);
+
+        // Intercepta submit da calculadora de frete no checkout (sem recarregar)
+        $(document).on('submit', 'form.woocommerce-shipping-calculator', function(e){
+          e.preventDefault();
+
+          var cep = $(this).find('input[name="calc_shipping_postcode"]').val() || '';
+
+          // Copia o CEP para billing/shipping do checkout (se existirem)
+          $('#billing_postcode').val(cep).trigger('change');
+          $('#shipping_postcode').val(cep).trigger('change');
+
+          // Marca país como BR por padrão (ajuda SuperFrete)
+          if ($('#billing_country').length && !$('#billing_country').val()){
+            $('#billing_country').val('BR').trigger('change');
+          }
+          if ($('#shipping_country').length && !$('#shipping_country').val()){
+            $('#shipping_country').val('BR').trigger('change');
+          }
+
+          // Dispara cálculo de frete/total
+          $(document.body).trigger('update_checkout');
+        });
+      });
+    })(jQuery);
+    JS;
 
       wp_add_inline_script('wc-checkout', $inline);
    }
@@ -773,3 +794,23 @@ add_filter('woocommerce_cart_ready_to_calc_shipping', function ($ready) {
    if (is_cart()) return false;
    return $ready;
 }, 10);
+
+add_action('woocommerce_review_order_before_shipping', function () {
+   if (! WC()->cart || ! WC()->cart->needs_shipping()) return;
+
+   // Se já temos frete calculado, não mostra a calculadora
+   if (WC()->customer && WC()->customer->has_calculated_shipping()) return;
+
+   echo '<div class="rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-4 mb-4">';
+   echo '<h3 class="text-lg font-bold text-purple-700 mb-2">Calcular frete</h3>';
+   // Usa o template nativo do Woo (o mesmo do carrinho), mas com filtros para exibir só CEP
+   wc_get_template('cart/shipping-calculator.php', ['button_text' => 'Calcular']);
+   echo '</div>';
+}, 5);
+
+/**
+ * 2) Habilitar apenas o campo CEP na calculadora
+ */
+add_filter('woocommerce_shipping_calculator_enable_country', '__return_false');
+add_filter('woocommerce_shipping_calculator_enable_state',   '__return_false');
+add_filter('woocommerce_shipping_calculator_enable_city',    '__return_false');
