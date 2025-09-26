@@ -111,11 +111,14 @@ do_action('woocommerce_before_cart');
                   <li class="pt-2 border-t border-purple-200">
                      <div class="py-3">
                         <?php if (WC()->cart->show_shipping()) : ?>
-                           <?php wc_cart_totals_shipping_html(); // radios do SuperFrete aqui 
+                           <?php // Mostra as opções de frete com radios e valores 
                            ?>
+                           <?php wc_cart_totals_shipping_html(); ?>
                         <?php else : ?>
                            <h3 class="text-sm font-semibold text-purple-700 mb-2">Calcular frete</h3>
-                           <?php wc_get_template('cart/shipping-calculator.php', ['button_text' => 'Atualizar']); ?>
+                           <?php // Calculadora nativa (só CEP; ver filtros abaixo) 
+                           ?>
+                           <?php wc_get_template('cart/shipping-calculator.php', ['button_text' => 'Calcular']); ?>
                         <?php endif; ?>
                      </div>
                   </li>
@@ -153,30 +156,5 @@ do_action('woocommerce_before_cart');
       </aside>
    </div>
 </div>
-<script>
-   (function($) {
-      function restyleCartTotals() {
-         var $box = $('.cart_totals');
-         if (!$box.length) return;
-
-         // adiciona suas classes do “box”
-         $box.addClass('rounded-xl ring-1 ring-purple-300 shadow-md bg-white p-6');
-
-         // título “Resumo”
-         $box.find('h2').addClass('text-xl font-bold text-purple-700 mb-4');
-
-         // total em destaque (ajuste se seu HTML for diferente)
-         $box.find('.order-total, .order-total td, .order-total th')
-            .addClass('text-2xl font-bold text-black');
-      }
-
-      // 1ª carga
-      $(restyleCartTotals);
-
-      // depois que o Woo trocar os fragmentos do carrinho
-      $(document.body).on('updated_wc_div wc_fragments_refreshed', restyleCartTotals);
-   })(jQuery);
-</script>
-
 
 <?php do_action('woocommerce_after_cart'); ?>
