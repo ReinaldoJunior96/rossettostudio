@@ -270,19 +270,7 @@ add_filter('woocommerce_gateway_icon', function ($icon, $gateway_id) {
 
 add_filter('woocommerce_coupons_enabled', '__return_false');
 
-/* ==============================
-   Debug frete no carrinho (apenas admin)
-   (opcional: pode remover se quiser)
-============================== */
-add_action('wp_footer', function () {
-   if (is_cart() && current_user_can('manage_woocommerce')) {
-      $packages = WC()->shipping()->get_packages();
-      echo '<pre style="background:#111;color:#0f0;padding:12px;white-space:pre-wrap;z-index:99999;position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto">';
-      echo "DEBUG FRETE\n\n";
-      print_r($packages);
-      echo '</pre>';
-   }
-});
+
 
 add_action('woocommerce_after_shipping_rate', function ($rate) {
    error_log(sprintf('[FRETE] %s | %s | R$ %s', $rate->id, $rate->label, $rate->cost));
