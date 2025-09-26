@@ -406,9 +406,9 @@ add_action('wp_head', function () {
 ============================== */
 
 /** Calcula fretes para CEP e retorna opções (rate_id/label/cost) */
-add_action('wp_ajax_calculate_shipping', 'rs_ajax_calculate_shipping');
-add_action('wp_ajax_nopriv_calculate_shipping', 'rs_ajax_calculate_shipping');
-function rs_ajax_calculate_shipping()
+add_action('wp_ajax_rs_calc_shipping', 'rs_ajax_calc_shipping');
+add_action('wp_ajax_nopriv_rs_calc_shipping', 'rs_ajax_calc_shipping');
+function rs_ajax_calc_shipping()
 {
    if (null === WC()->cart) {
       wc_load_cart();
@@ -430,26 +430,57 @@ function rs_ajax_calculate_shipping()
    WC()->cart->calculate_shipping();
    WC()->cart->calculate_totals();
 
+   // Pacotes e rates
    $packages = WC()->shipping()->get_packages();
    $pkg = $packages[0] ?? null;
    $rates = $pkg['rates'] ?? [];
 
    $options = [];
+   $rates_debug = [];
+
    foreach ($rates as $rate) {
       /** @var WC_Shipping_Rate $rate */
       $label = $rate->get_label();
       $cost  = (float) $rate->get_cost();
       $taxes = array_sum((array) $rate->get_taxes());
-      $cost_total = $cost + (float) $taxes;
+      $total = $cost + (float) $taxes;
 
       $options[] = [
-         'id'    => $rate->get_id(), // ex: "flat_rate:3"
-         'label' => sprintf('%s — %s', $label, wc_price($cost_total)),
-         'cost'  => $cost_total,
+         'id'    => $rate->get_id(),              // ex: superfrete_sedex:12
+         'label' => sprintf('%s — %s', $label, wc_price($total)),
+         'cost'  => $total,
+      ];
+
+      // DEBUG amigável (sem objetos)
+      $rates_debug[] = [
+         'id'          => $rate->get_id(),
+         'method_id'   => method_exists($rate, 'get_method_id')   ? $rate->get_method_id()   : null,
+         'instance_id' => method_exists($rate, 'get_instance_id') ? $rate->get_instance_id() : null,
+         'label'       => $label,
+         'cost'        => $cost,
+         'taxes'       => (array) $rate->get_taxes(),
+         'meta_data'   => (array) $rate->get_meta_data(),
       ];
    }
 
-   wp_send_json_success(['options' => $options]);
+   // Pacote/destino resumido pra debug
+   $pkg_debug = $pkg ? [
+      'contents_cost' => $pkg['contents_cost'] ?? null,
+      'destination'   => $pkg['destination']   ?? [],
+      'applied_coupons' => WC()->cart ? WC()->cart->get_applied_coupons() : [],
+   ] : null;
+
+   wp_send_json_success([
+      'options' => $options,
+      'debug'   => [
+         'customer' => [
+            'shipping_country'  => WC()->customer->get_shipping_country(),
+            'shipping_postcode' => WC()->customer->get_shipping_postcode(),
+         ],
+         'package' => $pkg_debug,
+         'rates'   => $rates_debug,
+      ],
+   ]);
 }
 
 /** Define o método de frete escolhido e recalcula totais */

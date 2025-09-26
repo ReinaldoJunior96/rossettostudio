@@ -125,42 +125,60 @@ function renderOptions(options, preselectedRateId) {
   })();
 
   // calcular
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const cep = String(cepInput.value || '').replace(/\D/g, '');
-    if (!isValidCep(cep)) {
-      alert('Informe um CEP válido (8 dígitos).');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const cep = String(cepInput.value || '').replace(/\D/g, '');
+  if (!isValidCep(cep)) {
+    alert('Informe um CEP válido (8 dígitos).');
+    return;
+  }
+  saveCep(cep);
+  setLoading(true);
+  optionsBox.innerHTML = '<div class="text-sm text-gray-500">Calculando frete…</div>';
+
+  try {
+    const r = await fetch(AJAX_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({ action: 'rs_calc_shipping', cep })
+    });
+    const data = await r.json();
+
+    // === DEBUG visível no console e opcional na UI ===
+    console.group('[Frete] resposta rs_calc_shipping');
+    console.log('payload:', data);
+    console.groupEnd();
+
+    if (!data?.success) {
+      optionsBox.innerHTML = '';
+      alert(data?.data?.message || 'Erro ao calcular frete.');
       return;
     }
-    saveCep(cep);
-    setLoading(true);
-    optionsBox.innerHTML = '<div class="text-sm text-gray-500">Calculando frete…</div>';
 
-    try {
-      const r = await fetch(AJAX_URL, {
-        method: 'POST',
-        headers: {'Content-Type':'application/x-www-form-urlencoded'},
-        body: new URLSearchParams({ action: 'calculate_shipping', cep })
-      });
-      const data = await r.json();
-      if (!data?.success) {
-        optionsBox.innerHTML = '';
-        alert(data?.data?.message || 'Erro ao calcular frete.');
-        return;
-      }
-      const options = data.data.options || [];
-      saveOptions(options);
-      const selected = loadSelected();
-      renderOptions(options, selected);
+    const options = data.data.options || [];
+
+    if (!options.length) {
+      const debugPretty = JSON.stringify(data.data.debug || {}, null, 2);
+      optionsBox.innerHTML =
+        '<div class="text-sm text-red-600 mb-2">Nenhuma opção de frete para este CEP.</div>' +
+        '<pre style="white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;background:#fafafa;font-size:12px;">'
+        + debugPretty + '</pre>';
       await refreshCartTotalsBox();
-    } catch (err) {
-      console.error(err);
-      optionsBox.innerHTML = '';
-      alert('Erro ao calcular frete. Tente novamente.');
-    } finally {
-      setLoading(false);
+      return;
     }
-  });
+
+    saveOptions(options);
+    const selected = loadSelected();
+    renderOptions(options, selected);
+    await refreshCartTotalsBox();
+  } catch (err) {
+    console.error(err);
+    optionsBox.innerHTML = '';
+    alert('Erro ao calcular frete. Tente novamente.');
+  } finally {
+    setLoading(false);
+  }
+});
 
   // troca de opção
   optionsBox.addEventListener('change', async (e) => {
