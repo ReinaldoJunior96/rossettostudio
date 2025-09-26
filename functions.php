@@ -721,33 +721,26 @@ add_action('woocommerce_after_shipping_rate', function ($rate) {
 
 
 /**
- * 1) No CHECKOUT, mantém apenas a tarifa escolhida no carrinho.
- *    (Somente no primeiro load; se o usuário mexer no endereço, o Woo
- *     pode recalcular e você volta a ver as opções normalmente.)
+ * Esconde TODOS os métodos de frete no checkout enquanto não existir CEP.
+ * (Assim o cliente vê só a calculadora e nada “pré-selecionado”.)
  */
 add_filter('woocommerce_package_rates', function ($rates, $package) {
-   if (! is_checkout()) {
-      return $rates;
+   if (! is_checkout() || is_admin()) return $rates;
+
+   $postcode = '';
+   if (WC()->customer) {
+      // primeiro tenta o CEP de entrega; se não houver, tenta o de cobrança
+      $postcode = WC()->customer->get_shipping_postcode();
+      if ($postcode === '') $postcode = WC()->customer->get_billing_postcode();
    }
 
-   // Em requisições AJAX (quando o usuário altera endereço, CEP etc.),
-   // deixe o WooCommerce trabalhar normalmente.
-   if (defined('DOING_AJAX') && DOING_AJAX) {
-      return $rates;
+   // Sem CEP => não mostre nenhuma tarifa ainda
+   if ($postcode === '' || !preg_match('/^\d{5}-?\d{3}$/', $postcode)) {
+      return [];
    }
 
-   // Recupera o método escolhido no carrinho
-   $chosen = WC()->session ? WC()->session->get('chosen_shipping_methods') : [];
-   $chosen_id = (is_array($chosen) && !empty($chosen[0])) ? $chosen[0] : '';
-
-   // Se o método escolhido existir neste pacote, retorna somente ele
-   if ($chosen_id && isset($rates[$chosen_id])) {
-      return [$chosen_id => $rates[$chosen_id]];
-   }
-
-   // Senão, mantém todos (fallback)
    return $rates;
-}, 9999, 2);
+}, 1000, 2);
 
 /**
  * Checkout: exibir SOMENTE o método de frete já escolhido no carrinho.
