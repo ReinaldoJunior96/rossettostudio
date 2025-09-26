@@ -390,3 +390,28 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    $args['class'][]       = 'rs-row';
    return $args;
 }, 10, 3);
+
+
+/* Esconde as opções de frete no checkout (sem mudar a seleção do Woo) */
+add_action('wp_head', function () {
+   if (!is_checkout()) return;
+   echo '<style>
+      /* Lista de métodos (radios) */
+      .woocommerce-checkout-review-order .shipping ul#shipping_method,
+      .woocommerce-checkout-review-order .shipping .wc_shipping_rates {
+        display: none !important;
+      }
+    </style>';
+});
+
+
+// Calculadora do CARRINHO apenas com CEP (sem país/estado/cidade)
+add_filter('woocommerce_shipping_calculator_enable_country', function ($enabled) {
+   return is_cart() ? false : $enabled;
+});
+add_filter('woocommerce_shipping_calculator_enable_state', function ($enabled) {
+   return is_cart() ? false : $enabled;
+});
+add_filter('woocommerce_shipping_calculator_enable_city', function ($enabled) {
+   return is_cart() ? false : $enabled;
+});

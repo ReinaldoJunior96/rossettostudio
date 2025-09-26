@@ -107,9 +107,22 @@ do_action('woocommerce_before_cart');
                   <span class="font-semibold"><?php wc_cart_totals_subtotal_html(); ?></span>
                </li>
 
-               <li class="text-sm text-gray-500 pt-2">
-                  O frete é calculado na próxima etapa (checkout).
-               </li>
+               <?php if (WC()->cart->needs_shipping()) : ?>
+                  <li class="pt-2 border-t border-purple-200">
+                     <div class="py-3">
+                        <?php if (WC()->cart->show_shipping()) : ?>
+                           <?php // Mostra as opções de frete com radios e valores 
+                           ?>
+                           <?php wc_cart_totals_shipping_html(); ?>
+                        <?php else : ?>
+                           <h3 class="text-sm font-semibold text-purple-700 mb-2">Calcular frete</h3>
+                           <?php // Calculadora nativa (só CEP; ver filtros abaixo) 
+                           ?>
+                           <?php wc_get_template('cart/shipping-calculator.php', ['button_text' => 'Calcular']); ?>
+                        <?php endif; ?>
+                     </div>
+                  </li>
+               <?php endif; ?>
 
                <?php foreach (WC()->cart->get_fees() as $fee) : ?>
                   <li class="flex justify-between">
