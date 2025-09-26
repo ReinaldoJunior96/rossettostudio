@@ -403,3 +403,32 @@ add_filter('woocommerce_shipping_calculator_enable_state', function ($enabled) {
 add_filter('woocommerce_shipping_calculator_enable_city', function ($enabled) {
    return is_cart() ? false : $enabled;
 });
+
+
+// Zera valores padrão dos campos do checkout (mesmo logado)
+add_filter('woocommerce_checkout_get_value', function ($value, $input) {
+   // Liste aqui os campos que quer SEM valor inicial
+   $blank = [
+      'billing_first_name',
+      'billing_last_name',
+      'billing_company',
+      'billing_cpf',
+      'billing_persontype',
+      'billing_postcode',
+      'billing_address_1',
+      'billing_address_2',
+      'billing_city',
+      'billing_state',
+      'billing_phone',
+      'billing_email',
+      'shipping_first_name',
+      'shipping_last_name',
+      'shipping_company',
+      'shipping_postcode',
+      'shipping_address_1',
+      'shipping_address_2',
+      'shipping_city',
+      'shipping_state'
+   ];
+   return in_array($input, $blank, true) ? '' : $value;
+}, 10, 2);
