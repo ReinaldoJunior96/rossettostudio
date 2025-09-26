@@ -392,6 +392,21 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    return $args;
 }, 10, 3);
 
+// Espelha billing_document para os índices que os plugins esperam (antes da validação)
+add_action('woocommerce_checkout_process', function () {
+   $doc   = isset($_POST['billing_document']) ? preg_replace('/\D+/', '', (string) $_POST['billing_document']) : '';
+   $ptype = isset($_POST['billing_persontype']) ? (int) $_POST['billing_persontype'] : 1; // 1=PF, 2=PJ
+
+   if ($ptype === 2) { // PJ => preencher CNPJ e limpar CPF
+      $_POST['billing_cnpj'] = $doc;
+      $_POST['billing_cpf']  = '';
+   } else {            // PF => preencher CPF e limpar CNPJ
+      $_POST['billing_cpf']  = $doc;
+      $_POST['billing_cnpj'] = '';
+   }
+});
+
+
 /* Esconde as opções de frete no checkout (sem mudar a seleção do Woo) */
 add_action('wp_head', function () {
    if (!is_checkout()) return;
