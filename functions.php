@@ -28,7 +28,8 @@ add_action('wp_enqueue_scripts', function () {
       wp_enqueue_script('wc-checkout');
       wp_enqueue_script('wc-country-select');
       wp_enqueue_script('wc-address-i18n');
-      // (intencionalmente sem checkout-shipping.js)
+
+      // REMOVIDO: enqueue de /assets/js/checkout-shipping.js
    }
 
    if (is_cart()) {
@@ -47,7 +48,7 @@ add_action('wp_enqueue_scripts', function () {
       wp_enqueue_style('tailwind', $uri . '/assets/build/app.css', [], filemtime($css_path));
    }
 
-   // Tema de cores
+   // tema de cores
    $theme_css = $dir . '/assets/css/theme.css';
    if (file_exists($theme_css)) {
       wp_enqueue_style('theme-colors', $uri . '/assets/css/theme.css', [], filemtime($theme_css));
@@ -56,7 +57,7 @@ add_action('wp_enqueue_scripts', function () {
    // FontAwesome
    wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css', [], null);
 
-   // Busca (AJAX)
+   // Busca
    $search_js = $dir . '/assets/js/search.js';
    if (file_exists($search_js)) {
       wp_enqueue_script('product-search', $uri . '/assets/js/search.js', [], filemtime($search_js), true);
@@ -66,7 +67,7 @@ add_action('wp_enqueue_scripts', function () {
       ]);
    }
 
-   // Galeria do produto
+   // Galeria produto
    if (is_product()) {
       $pg_js = $dir . '/assets/js/product-gallery.js';
       if (file_exists($pg_js)) {
@@ -108,6 +109,7 @@ function landing_tailwind_search_products()
          if (! $product) continue;
 
          $img = get_the_post_thumbnail_url($p->ID, 'woocommerce_thumbnail') ?: wc_placeholder_img_src('woocommerce_thumbnail');
+
          $items[] = [
             'id'         => $p->ID,
             'title'      => html_entity_decode(get_the_title($p->ID)),
@@ -136,14 +138,13 @@ add_action('woocommerce_register_form', function () {
    $fields = [
       'billing_first_name' => ['type' => 'text', 'label' => 'Nome', 'required' => true, 'class' => ['form-row-first']],
       'billing_last_name'  => ['type' => 'text', 'label' => 'Sobrenome', 'required' => true, 'class' => ['form-row-last']],
-      'billing_phone'      => ['type' => 'tel',  'label' => 'Telefone', 'required' => true, 'class' => ['form-row-wide'], 'custom_attributes' => ['inputmode' => 'tel']],
+      'billing_phone'      => ['type' => 'tel', 'label' => 'Telefone', 'required' => true, 'class' => ['form-row-wide'], 'custom_attributes' => ['inputmode' => 'tel']],
       'billing_postcode'   => ['type' => 'text', 'label' => 'CEP', 'required' => true, 'class' => ['form-row-first'], 'custom_attributes' => ['inputmode' => 'numeric']],
       'billing_city'       => ['type' => 'text', 'label' => 'Cidade', 'required' => true, 'class' => ['form-row-last']],
       'billing_address_1'  => ['type' => 'text', 'label' => 'Endereço (Rua/Av.)', 'required' => true, 'class' => ['form-row-first']],
       'billing_address_2'  => ['type' => 'text', 'label' => 'Complemento (opcional)', 'class' => ['form-row-last']],
       'billing_state'      => ['type' => 'text', 'label' => 'Estado (UF)', 'required' => true, 'class' => ['form-row-first']],
    ];
-
    foreach ($fields as $key => $args) {
       woocommerce_form_field($key, $args, $posted($key));
    }
@@ -196,7 +197,6 @@ add_action('woocommerce_created_customer', function ($customer_id) {
    $get = function ($k) {
       return isset($_POST[$k]) ? wc_clean(wp_unslash($_POST[$k])) : '';
    };
-
    $first = $get('billing_first_name');
    $last  = $get('billing_last_name');
    if ($first) {
@@ -272,6 +272,7 @@ add_filter('woocommerce_coupons_enabled', '__return_false');
 
 /* ==============================
    Debug frete no carrinho (apenas admin)
+   (opcional: pode remover se quiser)
 ============================== */
 add_action('wp_footer', function () {
    if (is_cart() && current_user_can('manage_woocommerce')) {
@@ -335,7 +336,7 @@ add_action('pre_get_posts', function ($q) {
 add_filter('woocommerce_blocks_use_cart_checkout_blocks', '__return_false');
 
 /* ==============================
-   Checkout – visual & placeholders
+   Checkout – visual & placeholders (mantido)
 ============================== */
 add_filter('woocommerce_checkout_fields', function ($fields) {
    $groups = ['billing', 'shipping', 'account', 'order'];
@@ -390,49 +391,15 @@ add_filter('woocommerce_form_field_args', function ($args, $key, $value) {
    return $args;
 }, 10, 3);
 
-/* Esconde as opções de frete no checkout (apenas visual) */
+
+/* Esconde as opções de frete no checkout (sem mudar a seleção do Woo) */
 add_action('wp_head', function () {
    if (!is_checkout()) return;
    echo '<style>
-    .woocommerce-checkout-review-order .shipping ul#shipping_method,
-    .woocommerce-checkout-review-order .shipping .wc_shipping_rates {
-      display: none !important;
-    }
-  </style>';
-});
-
-/* ==============================
-   Frete no carrinho
-   - Calculadora só com CEP
-   - Força país BR para o Woo reconhecer endereço
-============================== */
-add_filter('woocommerce_shipping_calculator_enable_country', function ($enabled) {
-   return is_cart() ? false : $enabled;
-});
-add_filter('woocommerce_shipping_calculator_enable_state', function ($enabled) {
-   return is_cart() ? false : $enabled;
-});
-add_filter('woocommerce_shipping_calculator_enable_city', function ($enabled) {
-   return is_cart() ? false : $enabled;
-});
-
-// País padrão BR em sessões novas
-add_filter('woocommerce_customer_default_location', function ($location) {
-   return ['country' => 'BR', 'state' => ''];
-});
-
-// Se só informamos CEP no carrinho, garante country=BR no pacote
-add_filter('woocommerce_cart_shipping_packages', function ($packages) {
-   if (! is_cart()) return $packages;
-
-   foreach ($packages as &$p) {
-      if (empty($p['destination']['country'])) {
-         $p['destination']['country'] = 'BR';
+      /* Lista de métodos (radios) */
+      .woocommerce-checkout-review-order .shipping ul#shipping_method,
+      .woocommerce-checkout-review-order .shipping .wc_shipping_rates {
+        display: none !important;
       }
-      // Zera campos não usados (opcional)
-      $p['destination']['state']   = $p['destination']['state']   ?? '';
-      $p['destination']['city']    = $p['destination']['city']    ?? '';
-      $p['destination']['address'] = $p['destination']['address'] ?? '';
-   }
-   return $packages;
-}, 10, 1);
+    </style>';
+});
