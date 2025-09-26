@@ -424,26 +424,22 @@ function rs_ajax_calc_shipping()
    WC()->customer->set_shipping_postcode($cep);
    WC()->customer->save();
 
-   // 2) SPOOF: alguns gateways (SuperFrete) ignoram AJAX custom.
-   //    Finge que estamos no endpoint do checkout para obrigar o cálculo.
+   // 2) Spoof para alguns gateways (ex.: SuperFrete)
    $orig_action = isset($_REQUEST['action']) ? $_REQUEST['action'] : null;
    $_REQUEST['action'] = 'woocommerce_update_order_review';
 
-   // 3) Recalcular shipping + totais
+   // 3) Recalcular
    WC()->cart->calculate_shipping();
    WC()->cart->calculate_totals();
 
-   // 4) Volta a action original
-   if ($orig_action === null) {
-      unset($_REQUEST['action']);
-   } else {
-      $_REQUEST['action'] = $orig_action;
-   }
+   // 4) Restaurar action
+   if ($orig_action === null) unset($_REQUEST['action']);
+   else $_REQUEST['action'] = $orig_action;
 
    // 5) Monta resposta
    $packages = WC()->shipping()->get_packages();
-   $pkg      = $packages[0] ?? null;
-   $rates    = $pkg['rates'] ?? [];
+   $pkg   = $packages[0] ?? null;
+   $rates = $pkg['rates'] ?? [];
 
    $options     = [];
    $rates_debug = [];
@@ -456,8 +452,8 @@ function rs_ajax_calc_shipping()
       $total = $cost + (float) $taxes;
 
       $options[] = [
-         'id'    => $rate->get_id(),                              // ex: superfrete_sedex:12
-         'label' => sprintf('%s — %s', $label, wc_price($total)), // "Sedex — R$ 12,08"
+         'id'    => $rate->get_id(),
+         'label' => sprintf('%s — %s', $label, wc_price($total)),
          'cost'  => $total,
       ];
 
@@ -470,6 +466,14 @@ function rs_ajax_calc_shipping()
          'taxes'       => (array) $rate->get_taxes(),
          'meta_data'   => (array) $rate->get_meta_data(),
       ];
+   }
+
+   // <-- Logs de debug no lugar certo
+   if (defined('WP_DEBUG') && WP_DEBUG) {
+      error_log('[RATES_DEBUG] ' . print_r($rates_debug, true));
+      if (empty($rates_debug)) {
+         error_log('[RATES_DEBUG] Nenhuma opção retornada para CEP ' . $cep);
+      }
    }
 
    $pkg_debug = $pkg ? [
