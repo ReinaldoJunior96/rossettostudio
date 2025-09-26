@@ -468,6 +468,8 @@ function rs_ajax_set_shipping_method()
    $chosen[0] = $rate_id; // único pacote
    WC()->session->set('chosen_shipping_methods', $chosen);
 
+   // Recalcula frete + totais (garante que o método entra no cálculo)
+   WC()->cart->calculate_shipping();
    WC()->cart->calculate_totals();
    wp_send_json_success(['ok' => true]);
 }
@@ -481,6 +483,9 @@ function rs_ajax_clear_shipping_method()
       wc_load_cart();
    }
    WC()->session->__unset('chosen_shipping_methods');
+
+   // Recalcula frete + totais sem método
+   WC()->cart->calculate_shipping();
    WC()->cart->calculate_totals();
    wp_send_json_success(['ok' => true]);
 }

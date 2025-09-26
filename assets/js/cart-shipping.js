@@ -63,49 +63,57 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshCartTotalsBox();
   }
 
-  function renderOptions(options, preselectedRateId) {
-    optionsBox.innerHTML = '';
-    if (!Array.isArray(options) || options.length === 0) return;
-
-    // definir mais barata
-    let cheapest = null;
-    options.forEach(o => {
-      const c = toNumber(o.cost);
-      if (Number.isFinite(c)) {
-        if (!cheapest || c < cheapest.cost) cheapest = { id: o.id, cost: c };
-      }
-    });
-
-    options.forEach((o, idx) => {
-      const id = `opt-${idx}`;
-      const wrap = document.createElement('label');
-      wrap.className = 'flex items-center gap-2 mt-2 cursor-pointer';
-
-      const radio = document.createElement('input');
-      radio.type = 'radio';
-      radio.name = 'shipping_choice';
-      radio.value = o.id; // rate_id
-      radio.id = id;
-      radio.className = 'text-purple-700 focus:ring-purple-500';
-
-      const span = document.createElement('span');
-      span.textContent = o.label;
-
-      wrap.appendChild(radio);
-      wrap.appendChild(span);
-      optionsBox.appendChild(wrap);
-
-      const shouldCheck = preselectedRateId
-        ? (o.id === preselectedRateId)
-        : (cheapest && o.id === cheapest.id);
-
-      if (shouldCheck) {
-        radio.checked = true;
-        radio.defaultChecked = true;
-        setTimeout(() => chooseRate(o.id), 0); // aplica escolhida
-      }
-    });
+function renderOptions(options, preselectedRateId) {
+  optionsBox.innerHTML = '';
+  if (!Array.isArray(options) || options.length === 0) {
+    optionsBox.innerHTML = '<div class="text-sm text-gray-500">Nenhuma opção de frete para este CEP.</div>';
+    return;
   }
+
+  let cheapest = null;
+  options.forEach(o => {
+    const c = toNumber(o.cost);
+    if (Number.isFinite(c)) {
+      if (!cheapest || c < cheapest.cost) cheapest = { id: o.id, cost: c };
+    }
+  });
+
+  const list = document.createElement('div');
+  list.setAttribute('role', 'radiogroup');
+
+  options.forEach((o, idx) => {
+    const id = `opt-${idx}`;
+    const wrap = document.createElement('label');
+    wrap.className = 'flex items-center gap-2 mt-2 cursor-pointer';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'shipping_choice';
+    radio.value = o.id; // rate_id
+    radio.id = id;
+    radio.className = 'text-purple-700 focus:ring-purple-500';
+
+    const span = document.createElement('span');
+    span.textContent = o.label;
+
+    wrap.appendChild(radio);
+    wrap.appendChild(span);
+    list.appendChild(wrap);
+
+    const shouldCheck = preselectedRateId
+      ? (o.id === preselectedRateId)
+      : (cheapest && o.id === cheapest.id);
+
+    if (shouldCheck) {
+      radio.checked = true;
+      radio.defaultChecked = true;
+      // aplica a escolhida (cheapest ou a previamente selecionada)
+      setTimeout(() => chooseRate(o.id), 0);
+    }
+  });
+
+  optionsBox.appendChild(list);
+}
 
   // bootstrap (CEP e opções anteriores)
   (function initFromStorage(){
@@ -163,17 +171,35 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // limpar
-  if (limparBtn) {
-    limparBtn.addEventListener('click', async () => {
+// limpar
+if (limparBtn) {
+  limparBtn.addEventListener('click', async () => {
+    try {
       sessionStorage.removeItem(KS.OPTS);
       sessionStorage.removeItem(KS.SELECTED);
-      await fetch(AJAX_URL, {
-        method:'POST',
-        headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({ action:'clear_shipping_method' })
-      });
+      sessionStorage.removeItem(KS.CEP);
+
+      // limpa método de frete E a taxa de teste
+      await Promise.all([
+        fetch(AJAX_URL, {
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({ action:'clear_shipping_method' })
+        }),
+        fetch(AJAX_URL, {
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({ action:'rs_clear_ten_fee' })
+        })
+      ]);
+
+      // limpa UI
+      if (cepInput) cepInput.value = '';
       optionsBox.innerHTML = '';
+    } finally {
       await refreshCartTotalsBox();
-    });
-  }
+    }
+  });
+}
+
 });
