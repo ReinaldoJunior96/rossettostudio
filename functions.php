@@ -661,3 +661,54 @@ add_filter('woocommerce_gateway_icon', function ($icon, $gateway_id) {
 }, 10, 2);
 
 add_filter('woocommerce_coupons_enabled', '__return_false');
+
+
+
+// Mostra pacotes e tarifas no rodapé do carrinho (apenas admin)
+add_action('wp_footer', function () {
+   if (is_cart() && current_user_can('manage_woocommerce')) {
+      $packages = WC()->shipping()->get_packages();
+      echo '<pre style="background:#111;color:#0f0;padding:12px;white-space:pre-wrap;z-index:99999;position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto">';
+      echo "DEBUG FRETE\n\n";
+      print_r($packages); // veja destination, contents, rates
+      echo '</pre>';
+   }
+});
+
+add_action('woocommerce_after_shipping_rate', function ($rate) {
+   error_log(sprintf('[FRETE] %s | %s | R$ %s', $rate->id, $rate->label, $rate->cost));
+});
+
+
+
+/**
+ * Checkout: manter APENAS o método de frete escolhido no carrinho.
+ * Assim, no checkout some a lista com radios e fica só o resumo do frete.
+ */
+add_filter('woocommerce_package_rates', function ($rates, $package) {
+   // Só no checkout (não afeta o carrinho)
+   if (! is_checkout() || is_cart()) {
+      return $rates;
+   }
+
+   $chosen = WC()->session ? WC()->session->get('chosen_shipping_methods') : [];
+   $chosen_id = is_array($chosen) ? reset($chosen) : '';
+
+   // Se houver um método escolhido e ele existir neste pacote, mantém só ele
+   if ($chosen_id && isset($rates[$chosen_id])) {
+      return [$chosen_id => $rates[$chosen_id]];
+   }
+
+   // Caso não exista (endereço mudou e aquele método não está disponível),
+   // não mexe — deixa o WooCommerce exibir as opções normalmente.
+   return $rates;
+}, 100, 2);
+
+/**
+ * Garante totais atualizados ao abrir o checkout (evita fragmentos antigos).
+ */
+add_action('woocommerce_before_checkout_form', function () {
+   if (WC()->cart) {
+      WC()->cart->calculate_totals();
+   }
+}, 5);
