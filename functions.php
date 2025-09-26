@@ -686,29 +686,69 @@ add_action('woocommerce_after_shipping_rate', function ($rate) {
  * Assim, no checkout some a lista com radios e fica só o resumo do frete.
  */
 add_filter('woocommerce_package_rates', function ($rates, $package) {
-   // Só no checkout (não afeta o carrinho)
-   if (! is_checkout() || is_cart()) {
+   // Só no checkout (no carrinho continua normal para o cliente escolher)
+   if (!is_checkout() || is_cart()) {
       return $rates;
    }
 
-   $chosen = WC()->session ? WC()->session->get('chosen_shipping_methods') : [];
-   $chosen_id = is_array($chosen) ? reset($chosen) : '';
+   $index  = isset($package['package_id']) ? (int) $package['package_id'] : 0;
+   $chosen = (array) WC()->session->get('chosen_shipping_methods', []);
+   $chosen_id = $chosen[$index] ?? '';
 
-   // Se houver um método escolhido e ele existir neste pacote, mantém só ele
+   // Se o escolhido existir nesse pacote, mantém só ele
    if ($chosen_id && isset($rates[$chosen_id])) {
       return [$chosen_id => $rates[$chosen_id]];
    }
 
-   // Caso não exista (endereço mudou e aquele método não está disponível),
-   // não mexe — deixa o WooCommerce exibir as opções normalmente.
+   // Fallback: escolhe o mais barato e trava
+   if (!empty($rates)) {
+      uasort($rates, function ($a, $b) {
+         return $a->cost <=> $b->cost;
+      });
+      $first_id = key($rates);
+      $only = [$first_id => current($rates)];
+      $chosen[$index] = $first_id;
+      WC()->session->set('chosen_shipping_methods', $chosen);
+      return $only;
+   }
+
    return $rates;
-}, 100, 2);
+}, 9999, 2);
 
 /**
- * Garante totais atualizados ao abrir o checkout (evita fragmentos antigos).
+ * Checkout: exibir SOMENTE o método de frete já escolhido no carrinho.
+ * - Se não houver escolhido ainda, define um (o mais barato) e trava.
+ * - Se o método antes escolhido ficar indisponível ao mudar o endereço no checkout,
+ *   escolhe o mais barato disponível e mantém travado.
  */
 add_action('woocommerce_before_checkout_form', function () {
+   if (is_cart()) return;
+
+   // Garante que o carrinho está calculado
    if (WC()->cart) {
       WC()->cart->calculate_totals();
    }
+
+   $chosen = (array) WC()->session->get('chosen_shipping_methods', []);
+   $packages = WC()->shipping()->get_packages();
+
+   foreach ($packages as $i => $pkg) {
+      // Recalcula taxas do pacote e pega as rates atuais
+      $calc = WC()->shipping()->calculate_shipping_for_package($pkg);
+      $rates = isset($calc['rates']) ? $calc['rates'] : [];
+
+      // Se não há escolhido ou o escolhido não existe mais, pega o mais barato
+      if (empty($chosen[$i]) || !isset($rates[$chosen[$i]])) {
+         if (!empty($rates)) {
+            // ordena por custo e pega o mais barato
+            uasort($rates, function ($a, $b) {
+               return $a->cost <=> $b->cost;
+            });
+            $first_id = key($rates);
+            $chosen[$i] = $first_id;
+         }
+      }
+   }
+
+   WC()->session->set('chosen_shipping_methods', $chosen);
 }, 5);
